@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@font-face {
+    font-family: 'Minecraft';
+    src: url('./assets/fonts/Minecraft.ttf') format('truetype');
+}
