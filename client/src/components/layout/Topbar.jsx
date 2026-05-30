@@ -1,19 +1,9 @@
 import { useSelector } from 'react-redux'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { MdDashboard, MdPeople, MdSupportAgent, MdMenuBook, MdBarChart, MdSettings } from 'react-icons/md'
 import Header from './Header'
 import Footer from './Footer'
 
-const navLinks = [
-    { label: 'Dashboard', path: '/admin/dashboard', icon: MdDashboard },
-    { label: 'Farmers', path: '/admin/farmers', icon: MdPeople },
-    { label: 'Extension Workers', path: '/admin/extension-workers', icon: MdSupportAgent },
-    { label: 'Knowledge Repository', path: '/admin/knowledge-repository', icon: MdMenuBook },
-    { label: 'Reports', path: '/admin/reports', icon: MdBarChart },
-    { label: 'Settings', path: '/admin/settings', icon: MdSettings },
-]
-
-const Topbar = ({ children, notificationCount = 0 }) => {
+const Topbar = ({ children, notificationCount = 0, navLinks = [] }) => {
     const theme = useSelector((state) => state.theme)
     const navigate = useNavigate()
     const location = useLocation()

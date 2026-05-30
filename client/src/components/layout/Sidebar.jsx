@@ -3,29 +3,21 @@ import { useSelector, useDispatch } from 'react-redux'
 import { getCookie, setPermCookie } from '../../utils/cookies'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { GiWheat } from 'react-icons/gi'
-import { MdDashboard, MdPeople, MdSupportAgent, MdMenuBook, MdBarChart, MdSettings, MdChevronLeft, MdChevronRight } from 'react-icons/md'
+import { MdChevronLeft, MdChevronRight } from 'react-icons/md'
 import { IoNotificationsOutline } from 'react-icons/io5'
 import { FiLogOut } from 'react-icons/fi'
 import { clearCredentials } from '../../store/slices/authSlice'
 import logoMinecraft from '../../assets/logo-minecraft.png'
 import Footer from './Footer'
 
-const navLinks = [
-    { label: 'Dashboard', path: '/admin/dashboard', icon: MdDashboard },
-    { label: 'Farmers', path: '/admin/farmers', icon: MdPeople },
-    { label: 'Extension Workers', path: '/admin/extension-workers', icon: MdSupportAgent },
-    { label: 'Knowledge Repository', path: '/admin/knowledge-repository', icon: MdMenuBook },
-    { label: 'Reports', path: '/admin/reports', icon: MdBarChart },
-    { label: 'Settings', path: '/admin/settings', icon: MdSettings },
-]
-
-const Sidebar = ({ children, notificationCount = 0 }) => {
+const Sidebar = ({ children, notificationCount = 0, navLinks = [] }) => {
     const theme = useSelector((state) => state.theme)
     const { user } = useSelector((state) => state.auth)
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const location = useLocation()
     const [collapsed, setCollapsed] = useState(getCookie('sidebarCollapsed') === 'true')
+
 
     const initials = user ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase() : 'U'
 
@@ -47,7 +39,8 @@ const Sidebar = ({ children, notificationCount = 0 }) => {
                 {/* Logo + Collapse Button */}
                 <div className='flex items-center justify-between px-3 py-4'>
                     {!collapsed && (
-                        <div className='flex items-center gap-2 cursor-pointer' onClick={() => navigate('/admin/dashboard')}>
+                        <div className='flex items-center gap-2 cursor-pointer' onClick={() => navigate('/dashboard')}
+>
                             {theme.minecraftLogo
                                 ? <img src={logoMinecraft} alt='logo' className='h-8 w-8 object-contain' />
                                 : <GiWheat size={24} color='#fff' />
@@ -65,7 +58,7 @@ const Sidebar = ({ children, notificationCount = 0 }) => {
                 {/* Profile */}
                 <div className={`flex items-center gap-3 py-4 cursor-pointer ${collapsed ? 'justify-center px-2' : 'px-6'}`}
                     style={{ borderTop: '1px solid rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}
-                    onClick={() => navigate('/admin/profile')}>
+                    onClick={() => navigate('/profile')}>
                     <div className='w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0'
                         style={{ backgroundColor: theme.secondaryColor, color: theme.textColor }}>
                         {initials}
@@ -73,7 +66,7 @@ const Sidebar = ({ children, notificationCount = 0 }) => {
                     {!collapsed && (
                         <div className='flex flex-col'>
                             <span className='text-sm font-medium text-white'>{user ? `${user.firstName} ${user.lastName}` : 'User'}</span>
-                            <span className='text-xs text-white opacity-60'>Admin</span>
+                            <span className='text-xs text-white opacity-60'>{user?.role || 'User'}</span>
                         </div>
                     )}
                 </div>
@@ -100,7 +93,7 @@ const Sidebar = ({ children, notificationCount = 0 }) => {
 
                 {/* Bottom */}
                 <div className='px-3 py-4 flex flex-col gap-1' style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                    <button onClick={() => navigate('/admin/notifications')}
+                    <button onClick={() => navigate('/notifications')}
                         className={`flex items-center gap-3 py-2.5 text-sm font-medium rounded-lg w-full ${collapsed ? 'justify-center px-2' : 'px-4 text-left'}`}
                         title={collapsed ? 'Notifications' : ''}
                         style={{ backgroundColor: 'transparent', color: '#fff', opacity: 0.75 }}>

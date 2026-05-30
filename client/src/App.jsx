@@ -1,23 +1,34 @@
 import { useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import minecraftMusic from './assets/sound-minecraft.mp3'
+
 import LandingPage from './pages/LandingPage'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import PendingApproval from './pages/auth/PendingApproval'
-import Dashboard from './pages/admin/Dashboard'
+
+import AdminDashboard from './pages/admin/Dashboard'
 import FarmersAccounts from './pages/admin/FarmersAccounts'
-import ExtensionWorkers from './pages/admin/ExtensionWorkers'
-import KnowledgeRepository from './pages/admin/KnowledgeRepository'
+import AdminExtensionWorkers from './pages/admin/ExtensionWorkers'
+import AdminKnowledgeRepository from './pages/admin/KnowledgeRepository'
 import Reports from './pages/admin/Reports'
-import Settings from './pages/admin/Settings'
+import AdminSettings from './pages/admin/Settings'
+
+import SharedDashboard from './pages/shared/Dashboard'
+import SharedNotifications from './pages/shared/Notifications'
+import SharedSettings from './pages/shared/Settings'
+
+import FarmerKnowledgeRepository from './pages/farmer/KnowledgeRepository'
+import FarmerExtensionWorkers from './pages/farmer/ExtensionWorkers'
+
+import Tickets from './pages/extensionworker/Tickets'
+
 import Init from './pages/system/init'
 import Overview from './pages/system/panel/Overview'
 import Endpoints from './pages/system/panel/Endpoints'
 import SystemControl from './pages/system/panel/SystemControl'
-import PageLoader from './components/ui/PageLoader'
-import minecraftMusic from './assets/sound-minecraft.mp3'
 
 function App() {
   const theme = useSelector((state) => state.theme)
@@ -51,23 +62,38 @@ function App() {
     }
   }, [theme.minecraftMusic])
 
-
-
   return (
     <div style={{ fontFamily: theme.minecraftMode ? 'Minecraft' : 'sans-serif' }}>
       <BrowserRouter>
         <Routes>
+          {/* Public */}
           <Route path='/' element={<LandingPage />} />
           <Route path='/login' element={<Login />} />
           <Route path='/register' element={<Register />} />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path='/pending-approval' element={<PendingApproval />} />
-          <Route path='/admin/dashboard' element={<Dashboard />} />
+
+          {/* Shared */}
+          <Route path='/dashboard' element={<SharedDashboard />} />
+          <Route path='/notifications' element={<SharedNotifications />} />
+          <Route path='/settings' element={<SharedSettings />} />
+
+          {/* Admin */}
+          <Route path='/admin/dashboard' element={<AdminDashboard />} />
           <Route path='/admin/farmers' element={<FarmersAccounts />} />
-          <Route path='/admin/extension-workers' element={<ExtensionWorkers />} />
-          <Route path='/admin/knowledge-repository' element={<KnowledgeRepository />} />
+          <Route path='/admin/extension-workers' element={<AdminExtensionWorkers />} />
+          <Route path='/admin/knowledge-repository' element={<AdminKnowledgeRepository />} />
           <Route path='/admin/reports' element={<Reports />} />
-          <Route path='/admin/settings' element={<Settings />} />
+          <Route path='/admin/settings' element={<AdminSettings />} />
+
+          {/* Farmer */}
+          <Route path='/farmer/knowledge-repository' element={<FarmerKnowledgeRepository />} />
+          <Route path='/farmer/extension-workers' element={<FarmerExtensionWorkers />} />
+
+          {/* Extension Worker */}
+          <Route path='/extension-worker/tickets' element={<Tickets />} />
+
+          {/* SuperAdmin */}
           <Route path='/system/init' element={<Init />} />
           <Route path='/system/panel/overview' element={<Overview />} />
           <Route path='/system/panel/endpoints' element={<Endpoints />} />
