@@ -1,0 +1,22 @@
+# Python/Django
+*.pyc
+__pycache__/
+*.env
+db.sqlite3
+venv/
+*.egg-info/
+migrations/
+
+# React/Node
+node_modules/
+dist/
+.env.local
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
