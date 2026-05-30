@@ -55,7 +55,6 @@ function App() {
 
   return (
     <div style={{ fontFamily: theme.minecraftMode ? 'Minecraft' : 'sans-serif' }}>
-      <PageLoader/>
       <BrowserRouter>
         <Routes>
           <Route path='/' element={<LandingPage />} />
