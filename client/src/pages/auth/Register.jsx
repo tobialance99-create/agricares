@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import api from '../../services/api'
@@ -19,6 +19,9 @@ const Register = () => {
     const [showConfirm, setShowConfirm] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
+    const [usernameStatus, setUsernameStatus] = useState(null) // null | 'checking' | 'available' | 'taken'
+    const [mobileStatus, setMobileStatus] = useState(null)
+
 
     const roleLabel = role === 'farmer' ? 'Farmer' : 'Extension Worker'
 
@@ -27,43 +30,66 @@ const Register = () => {
         setForm((prev) => ({ ...prev, [name]: value }))
     }
 
-const handleStep1 = async (e) => {
-    e.preventDefault()
-    if (form.password !== form.confirmPassword) return setError('Passwords do not match')
-    setLoading(true)
-    setError(null)
-    try {
-        await api.post('/auth/register/', {
-            firstName: form.firstName,
-            lastName: form.lastName,
-            barangay: form.barangay,
-            username: form.username,
-            mobileNumber: form.mobileNumber,
-            password: form.password,
-            role: role === 'farmer' ? 'farmer' : 'extension_worker',
-        })
-        await api.post('/auth/send-otp/', { mobileNumber: form.mobileNumber })
-        setStep(2)
-    } catch (err) {
-        setError(err.response?.data?.error || 'Registration failed. Please try again.')
-    } finally {
-        setLoading(false)
-    }
-}
+    const handleStep1 = async (e) => {
+        e.preventDefault()
+        if (usernameStatus === 'taken') return setError('Username is already taken')
+        if (mobileStatus === 'taken') return setError('Mobile number is already registered')
+        if (form.password !== form.confirmPassword) return setError('Passwords do not match')
 
-const handleStep2 = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-        await api.post('/auth/verify-otp/', { mobileNumber: form.mobileNumber, otp })
-        setStep(3)
-    } catch (err) {
-        setError(err.response?.data?.error || 'Invalid OTP. Please try again.')
-    } finally {
-        setLoading(false)
+        setLoading(true)
+        setError(null)
+        try {
+            await api.post('/auth/register/', {
+                firstName: form.firstName,
+                lastName: form.lastName,
+                barangay: form.barangay,
+                username: form.username,
+                mobileNumber: form.mobileNumber,
+                password: form.password,
+                role: role === 'farmer' ? 'farmer' : 'extension_worker',
+            })
+            setStep(2)
+        } catch (err) {
+            setError(err.response?.data?.error || 'Registration failed. Please try again.')
+        } finally {
+            setLoading(false)
+        }
     }
-}
+
+    const handleStep2 = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+        setError(null)
+        try {
+            await api.post('/auth/verify-otp/', { mobileNumber: form.mobileNumber, otp, isRegistration: true })
+            setStep(3)
+        } catch (err) {
+            setError(err.response?.data?.error || 'Invalid OTP. Please try again.')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (!form.username) return setUsernameStatus(null)
+        setUsernameStatus('checking')
+        const timer = setTimeout(async () => {
+            const res = await api.get(`/auth/check-username/?username=${form.username}`)
+            setUsernameStatus(res.data.available ? 'available' : 'taken')
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [form.username])
+
+    useEffect(() => {
+        if (!form.mobileNumber) return setMobileStatus(null)
+        setMobileStatus('checking')
+        const timer = setTimeout(async () => {
+            const res = await api.get(`/auth/check-mobile/?mobile=${form.mobileNumber}`)
+            setMobileStatus(res.data.available ? 'available' : 'taken')
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [form.mobileNumber])
+
 
 
 
@@ -119,16 +145,28 @@ const handleStep2 = async (e) => {
 
                             <div className='flex flex-col gap-1'>
                                 <label className='text-sm font-medium' style={{ color: theme.textColor }}>Username</label>
-                                <input name='username' value={form.username} onChange={handleChange} placeholder='Enter username' required
-                                    className='w-full px-4 py-2.5 text-sm outline-none border'
-                                    style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                <div className='relative'>
+                                    <input name='username' value={form.username} onChange={handleChange} placeholder='Enter username' required
+                                        className='w-full px-4 py-2.5 text-sm outline-none border pr-8'
+                                        style={{ borderRadius: theme.borderRadius, borderColor: usernameStatus === 'taken' ? theme.dangerColor : usernameStatus === 'available' ? '#22c55e' : theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                    {usernameStatus === 'checking' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50'>...</span>}
+                                    {usernameStatus === 'available' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm'>✓</span>}
+                                    {usernameStatus === 'taken' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm'>✗</span>}
+                                </div>
+                                {usernameStatus === 'taken' && <span className='text-xs' style={{ color: theme.dangerColor }}>Username is already taken</span>}
                             </div>
 
                             <div className='flex flex-col gap-1'>
                                 <label className='text-sm font-medium' style={{ color: theme.textColor }}>Mobile Number</label>
-                                <input name='mobileNumber' value={form.mobileNumber} onChange={handleChange} placeholder='Enter mobile number' required
-                                    className='w-full px-4 py-2.5 text-sm outline-none border'
-                                    style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                <div className='relative'>
+                                    <input name='mobileNumber' value={form.mobileNumber} onChange={handleChange} placeholder='Enter mobile number' required
+                                        className='w-full px-4 py-2.5 text-sm outline-none border pr-8'
+                                        style={{ borderRadius: theme.borderRadius, borderColor: mobileStatus === 'taken' ? theme.dangerColor : mobileStatus === 'available' ? '#22c55e' : theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                    {mobileStatus === 'checking' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50'>...</span>}
+                                    {mobileStatus === 'available' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm'>✓</span>}
+                                    {mobileStatus === 'taken' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm'>✗</span>}
+                                </div>
+                                {mobileStatus === 'taken' && <span className='text-xs' style={{ color: theme.dangerColor }}>Mobile number is already registered</span>}
                             </div>
 
                             <div className='flex flex-col gap-1'>

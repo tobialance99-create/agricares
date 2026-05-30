@@ -55,7 +55,7 @@ const ForgotPassword = () => {
         setLoading(true)
         setError(null)
         try {
-            await api.post('/auth/reset-password/', { identifier, otp, password: form.password })
+        await api.post('/auth/reset-password/', { identifier, password: form.password })
             setStep(4)
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to reset password. Please try again.')
@@ -97,7 +97,6 @@ const ForgotPassword = () => {
                                     style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                             </div>
                             <Button type='submit' loading={loading}>Send OTP</Button>
-                            <p className='text-center text-sm cursor-pointer' style={{ color: theme.primaryColor }} onClick={() => navigate(-1)}>← Back</p>
                         </form>
                     )}
 
@@ -114,7 +113,6 @@ const ForgotPassword = () => {
                                     style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                             </div>
                             <Button type='submit' loading={loading}>Verify OTP</Button>
-                            <p className='text-center text-sm cursor-pointer' style={{ color: theme.primaryColor }} onClick={() => setStep(1)}>← Back</p>
                         </form>
                     )}
 
@@ -148,7 +146,6 @@ const ForgotPassword = () => {
                                 </div>
                             </div>
                             <Button type='submit' loading={loading}>Reset Password</Button>
-                            <p className='text-center text-sm cursor-pointer' style={{ color: theme.primaryColor }} onClick={() => setStep(2)}>← Back</p>
                         </form>
                     )}
 
@@ -156,7 +153,6 @@ const ForgotPassword = () => {
                     {step === 4 && (
                         <div className='flex flex-col items-center gap-4 text-center'>
                             <p className='text-sm' style={{ color: theme.textColor }}>Password reset successfully!</p>
-                            <Button onClick={() => navigate('/')}>Back to Home</Button>
                         </div>
                     )}
                 </div>

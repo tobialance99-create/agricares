@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password, check_password
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, create_user, update_user
-from .otp_service import send_otp, verify_otp
+from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified
 
 def get_tokens(user_id, role):
     refresh = RefreshToken()
@@ -33,15 +33,25 @@ class RegisterView(APIView):
         if get_user_by_mobile(data['mobileNumber']):
             return Response({'error': 'Mobile number already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user_data = {
-            **data,
-            'passwordHash': make_password(data['password']),
-            'isPending': data['role'] == 'extension_worker',
-        }
-        user_data.pop('password')
+        try:
+            success = send_otp(data['mobileNumber'])
+            if not success:
+                return Response({'error': 'Failed to send OTP'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        create_user(user_data)
-        return Response({'message': 'Registration successful'}, status=status.HTTP_201_CREATED)
+        store_pending_registration(data['mobileNumber'], {
+            'firstName': data['firstName'],
+            'lastName': data['lastName'],
+            'barangay': data.get('barangay', ''),
+            'username': data['username'],
+            'mobileNumber': data['mobileNumber'],
+            'passwordHash': make_password(data['password']),
+            'role': data['role'],
+            'isPending': data['role'] == 'extension_worker',
+        })
+
+        return Response({'message': 'OTP sent successfully'}, status=status.HTTP_200_OK)
 
 
 class SendOTPView(APIView):
@@ -71,9 +81,19 @@ class VerifyOTPView(APIView):
 
         mobile_number = serializer.validated_data['mobileNumber']
         otp = serializer.validated_data['otp']
+        is_registration = serializer.validated_data.get('isRegistration', False)
 
         if not verify_otp(mobile_number, otp):
             return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if is_registration:
+            user_data = get_pending_registration(mobile_number)
+            if not user_data:
+                return Response({'error': 'Registration data expired. Please register again.'}, status=status.HTTP_400_BAD_REQUEST)
+            create_user(user_data)
+            clear_pending_registration(mobile_number)
+        else:
+            mark_otp_verified(mobile_number)
 
         return Response({'message': 'OTP verified successfully'})
 
@@ -149,7 +169,6 @@ class ResetPasswordView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         identifier = serializer.validated_data['identifier']
-        otp = serializer.validated_data['otp']
         password = serializer.validated_data['password']
 
         user = get_user_by_identifier(identifier)
@@ -157,8 +176,9 @@ class ResetPasswordView(APIView):
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if not verify_otp(user['mobileNumber'], otp):
-            return Response({'error': 'Invalid or expired OTP'}, status=status.HTTP_400_BAD_REQUEST)
+        if not is_otp_verified(user['mobileNumber']):
+            return Response({'error': 'OTP not verified. Please verify OTP first.'}, status=status.HTTP_400_BAD_REQUEST)
+        clear_otp_verified(user['mobileNumber'])
 
         update_user(user['id'], {
             'passwordHash': make_password(password),
@@ -166,3 +186,24 @@ class ResetPasswordView(APIView):
         })
 
         return Response({'message': 'Password reset successfully'})
+     
+class CheckUsernameView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        username = request.query_params.get('username', '')
+        if not username:
+            return Response({'available': False})
+        user = get_user_by_username(username)
+        return Response({'available': user is None})
+
+
+class CheckMobileView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        mobile = request.query_params.get('mobile', '')
+        if not mobile:
+            return Response({'available': False})
+        user = get_user_by_mobile(mobile)
+        return Response({'available': user is None})

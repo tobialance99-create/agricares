@@ -19,11 +19,12 @@ class SendOTPSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     mobileNumber = serializers.CharField()
     otp = serializers.CharField()
+    isRegistration = serializers.BooleanField(required=False, default=False)
 
 class ForgotPasswordSerializer(serializers.Serializer):
     identifier = serializers.CharField()
 
 class ResetPasswordSerializer(serializers.Serializer):
     identifier = serializers.CharField()
-    otp = serializers.CharField()
     password = serializers.CharField(write_only=True)
+
