@@ -16,6 +16,7 @@ import Init from './pages/system/init'
 import Overview from './pages/system/panel/Overview'
 import Endpoints from './pages/system/panel/Endpoints'
 import SystemControl from './pages/system/panel/SystemControl'
+import PageLoader from './components/ui/PageLoader'
 import minecraftMusic from './assets/sound-minecraft.mp3'
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
 
   return (
     <div style={{ fontFamily: theme.minecraftMode ? 'Minecraft' : 'sans-serif' }}>
+      <PageLoader/>
       <BrowserRouter>
         <Routes>
           <Route path='/' element={<LandingPage />} />
