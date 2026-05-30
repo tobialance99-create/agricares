@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
+import { setCredentials } from '../../store/slices/authSlice'
+import { setCookie, REMEMBER_ME_DAYS } from '../../utils/cookies'
+import api from '../../services/api'
 import { GiWheat } from 'react-icons/gi'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import logoMinecraft from '../../assets/logo-minecraft.png'
@@ -12,6 +15,7 @@ const Login = () => {
     const role = searchParams.get('role')
     const navigate = useNavigate()
     const theme = useSelector((state) => state.theme)
+    const dispatch = useDispatch()
 
     const [form, setForm] = useState({ identifier: '', password: '', rememberMe: false })
     const [showPassword, setShowPassword] = useState(false)
@@ -28,13 +32,22 @@ const Login = () => {
         setLoading(true)
         setError(null)
         try {
-            // API call will go here
+            const res = await api.post('/auth/login/', { identifier: form.identifier, password: form.password })
+            setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
+            dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
+            const userRole = res.data.user.role
+            if (userRole === 'admin') navigate('/admin/dashboard')
+            else if (userRole === 'farmer') navigate('/farmer/knowledge-repository')
+            else if (userRole === 'extension_worker') navigate('/extension-worker/tickets')
         } catch (err) {
-            setError('Invalid credentials. Please try again.')
+            const msg = err.response?.data?.error
+            if (err.response?.data?.isPending) navigate('/pending-approval')
+            else setError(msg || 'Invalid credentials. Please try again.')
         } finally {
             setLoading(false)
         }
     }
+
 
     const roleLabel = role === 'farmer' ? 'Farmer' : role === 'extension' ? 'Extension Worker' : 'Admin'
 

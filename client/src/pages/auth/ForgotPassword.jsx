@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import api from '../../services/api'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
 import Button from '../../components/ui/Button'
@@ -11,6 +12,7 @@ const ForgotPassword = () => {
 
     const [step, setStep] = useState(1)
     const [identifier, setIdentifier] = useState('')
+    const [mobileNumber, setMobileNumber] = useState('')
     const [otp, setOtp] = useState('')
     const [form, setForm] = useState({ password: '', confirmPassword: '' })
     const [showPassword, setShowPassword] = useState(false)
@@ -23,10 +25,11 @@ const ForgotPassword = () => {
         setLoading(true)
         setError(null)
         try {
-            // API call to send OTP will go here
+            const res = await api.post('/auth/forgot-password/', { identifier })
+            setMobileNumber(res.data.mobileNumber)
             setStep(2)
         } catch (err) {
-            setError('User not found. Please try again.')
+            setError(err.response?.data?.error || 'User not found. Please try again.')
         } finally {
             setLoading(false)
         }
@@ -37,10 +40,10 @@ const ForgotPassword = () => {
         setLoading(true)
         setError(null)
         try {
-            // API call to verify OTP will go here
+            await api.post('/auth/verify-otp/', { mobileNumber, otp })
             setStep(3)
         } catch (err) {
-            setError('Invalid OTP. Please try again.')
+            setError(err.response?.data?.error || 'Invalid OTP. Please try again.')
         } finally {
             setLoading(false)
         }
@@ -52,10 +55,10 @@ const ForgotPassword = () => {
         setLoading(true)
         setError(null)
         try {
-            // API call to reset password will go here
+            await api.post('/auth/reset-password/', { identifier, otp, password: form.password })
             setStep(4)
         } catch (err) {
-            setError('Failed to reset password. Please try again.')
+            setError(err.response?.data?.error || 'Failed to reset password. Please try again.')
         } finally {
             setLoading(false)
         }
@@ -102,7 +105,7 @@ const ForgotPassword = () => {
                     {step === 2 && (
                         <form onSubmit={handleStep2} className='flex flex-col gap-4'>
                             <p className='text-sm text-center' style={{ color: theme.textColor, opacity: 0.7 }}>
-                                We sent an OTP to the mobile number linked to <strong>{identifier}</strong>
+                                We sent an OTP to <strong>{mobileNumber}</strong>
                             </p>
                             <div className='flex flex-col gap-1'>
                                 <label className='text-sm font-medium' style={{ color: theme.textColor }}>Enter OTP</label>

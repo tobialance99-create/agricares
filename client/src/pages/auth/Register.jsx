@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import api from '../../services/api'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
 import Button from '../../components/ui/Button'
@@ -26,34 +27,45 @@ const Register = () => {
         setForm((prev) => ({ ...prev, [name]: value }))
     }
 
-    const handleStep1 = async (e) => {
-        e.preventDefault()
-        if (form.password !== form.confirmPassword) return setError('Passwords do not match')
-        setLoading(true)
-        setError(null)
-        try {
-            // API call to register + send OTP will go here
-            setStep(2)
-        } catch (err) {
-            setError('Registration failed. Please try again.')
-        } finally {
-            setLoading(false)
-        }
+const handleStep1 = async (e) => {
+    e.preventDefault()
+    if (form.password !== form.confirmPassword) return setError('Passwords do not match')
+    setLoading(true)
+    setError(null)
+    try {
+        await api.post('/auth/register/', {
+            firstName: form.firstName,
+            lastName: form.lastName,
+            barangay: form.barangay,
+            username: form.username,
+            mobileNumber: form.mobileNumber,
+            password: form.password,
+            role: role === 'farmer' ? 'farmer' : 'extension_worker',
+        })
+        await api.post('/auth/send-otp/', { mobileNumber: form.mobileNumber })
+        setStep(2)
+    } catch (err) {
+        setError(err.response?.data?.error || 'Registration failed. Please try again.')
+    } finally {
+        setLoading(false)
     }
+}
 
-    const handleStep2 = async (e) => {
-        e.preventDefault()
-        setLoading(true)
-        setError(null)
-        try {
-            // API call to verify OTP will go here
-            setStep(3)
-        } catch (err) {
-            setError('Invalid OTP. Please try again.')
-        } finally {
-            setLoading(false)
-        }
+const handleStep2 = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+        await api.post('/auth/verify-otp/', { mobileNumber: form.mobileNumber, otp })
+        setStep(3)
+    } catch (err) {
+        setError(err.response?.data?.error || 'Invalid OTP. Please try again.')
+    } finally {
+        setLoading(false)
     }
+}
+
+
 
     return (
         <div className='min-h-screen flex items-center justify-center relative'
