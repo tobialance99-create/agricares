@@ -34,13 +34,13 @@ const LandingPage = () => {
         <div className='min-h-screen' style={{ backgroundColor: theme.backgroundColor }}>
 
             {/* Navbar */}
-            <nav className='flex items-center justify-between px-70 py-4' style={{ backgroundColor: theme.primaryColor }}>
+            <nav className='flex items-center justify-between px-4 md:px-16 py-4' style={{ backgroundColor: theme.primaryColor }}>
                 <div className='flex items-center gap-2'>
                     {theme.minecraftLogo
                         ? <img src={logoMinecraft} alt='logo' className='h-10 w-10 object-contain' />
                         : <GiWheat size={28} color='#fff' />
                     }
-                <span className='text-xl font-bold tracking-wide text-white'>
+                    <span className='text-xl font-bold tracking-wide text-white'>
                         Agri<span style={{ color: theme.secondaryColor }}>Care</span>
                     </span>
                 </div>
@@ -57,13 +57,13 @@ const LandingPage = () => {
                 <div className='absolute inset-0' style={{ backgroundColor: 'rgba(0,0,0,0.45)' }} />
                 <div className='relative z-10 flex flex-col items-center gap-6'>
                     {theme.minecraftLogo
-                        ? <img src={logoMinecraft} alt='logo' className='h-35 w-35 object-contain' />
+                        ? <img src={logoMinecraft} alt='logo' className='h-20 w-20 md:h-35 md:w-35 object-contain' />
                         : <GiWheat size={72} color='#fff' />
                     }
-                    <h1 className='text-9xl font-extrabold text-white m-0 leading-tight'>
+                    <h1 className='text-5xl md:text-9xl font-extrabold text-white m-0 leading-tight'>
                         Agri<span style={{ color: theme.secondaryColor }}>Care</span>
                     </h1>
-                    <p className='text-3xl text-white opacity-90 m-0'>
+                    <p className='text-lg md:text-3xl text-white opacity-90 m-0'>
                         Grow <strong>SMART</strong>, Get Help <strong>FASTER</strong>
                     </p>
                     <div className='flex gap-3 mt-2'>
@@ -83,7 +83,7 @@ const LandingPage = () => {
                         </p>
                     </div>
                     {theme.minecraftSteve && (
-                        <img src={steveImg} alt='running steve' className='h-40 object-contain' />
+                        <img src={steveImg} alt='running steve' className='h-40 object-contain hidden md:block' />
                     )}
                 </div>
             </section>
@@ -120,7 +120,7 @@ const LandingPage = () => {
                     {theme.minecraftMode && (
                         <div className='text-center mt-1'>
                             <span className='text-xs opacity-50' style={{ color: theme.textColor }}>Have you ever downloaded Minecraft? </span>
-                            <a href='https://www.minecraft.net/en-us/download' target='_blank' rel='noreferrer' className='text-xs underline opacity-50' style={{ color: theme.primaryColor}}>Download now</a>
+                            <a href='https://www.minecraft.net/en-us/download' target='_blank' rel='noreferrer' className='text-xs underline opacity-50' style={{ color: theme.primaryColor }}>Download now</a>
                         </div>
                     )}
                 </div>

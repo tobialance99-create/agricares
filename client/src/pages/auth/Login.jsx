@@ -75,8 +75,8 @@ const Login = () => {
 
             <div className='relative z-10 w-full max-w-md mx-4'>
                 {/* Logo */}
-                <div className='flex flex-col items-center gap-2 mb-6'>
-                    <span className='text-8xl font-bold text-white tracking-wide'>
+                <div className='flex flex-col items-center gap-2 mb-6 mt-8'>
+                    <span className='text-5xl md:text-8xl font-bold text-white tracking-wide'>
                         Agri<span style={{ color: theme.secondaryColor }}>Care</span>
                     </span>
                 </div>
@@ -150,7 +150,7 @@ const Login = () => {
                     </div>
                 </Dialog>
 
-                <p className='text-center text-sm text-white opacity-60 mt-4 cursor-pointer' onClick={() => navigate('/')}>
+                <p className='text-center text-sm text-white opacity-60 mt-4 mb-8 cursor-pointer' onClick={() => navigate('/')}>
                     ← Back to Home
                 </p>
             </div>
