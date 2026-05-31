@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { setAppLoading } from './store/slices/appSlice'
+import { setTheme } from './store/slices/themeSlice'
+import api from './services/api'
 import PageLoader from './components/ui/PageLoader'
 import minecraftMusic from './assets/sound-minecraft.mp3'
 
@@ -63,8 +65,52 @@ function App() {
     }
   }, [theme.minecraftMusic])
 
-const dispatch = useDispatch()
-const isLoading = useSelector((state) => state.app.isLoading)
+  const dispatch = useDispatch()
+  const isLoading = useSelector((state) => state.app.isLoading)
+  const [systemDisabled, setSystemDisabled] = useState(false)
+  const [themeLoaded, setThemeLoaded] = useState(false)
+
+  useEffect(() => {
+    api.get('/theme/').then(res => {
+      dispatch(setTheme(res.data))
+      setThemeLoaded(true)
+    }).catch(() => setThemeLoaded(true))
+    api.get('/system/config/').then(res => {
+      setSystemDisabled(!res.data.isSystemEnabled)
+    }).catch(() => { })
+
+    let pollInterval = null
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsHost = import.meta.env.VITE_WS_URL || `${wsProtocol}//${window.location.host}`
+    const ws = new WebSocket(`${wsHost}/ws/system/`)
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data)
+      if (data.type === 'theme') {
+        const { type, ...themeData } = data
+        dispatch(setTheme(themeData))
+      } else if (data.type === 'config') {
+        setSystemDisabled(!data.isSystemEnabled)
+      }
+    }
+    ws.onerror = () => ws.close()
+    return () => ws.close()
+  }, [dispatch])
+
+
+
+  if (!themeLoaded) return <PageLoader onDone={() => { }} />
+
+  if (systemDisabled && !window.location.pathname.startsWith('/system/')) return (
+    <div className='min-h-screen flex flex-col items-center justify-center gap-4 text-center px-8'
+      style={{ backgroundColor: theme.backgroundColor }}>
+      <span className='text-6xl'>🔧</span>
+      <h1 className='text-2xl font-bold' style={{ color: theme.textColor }}>System Under Maintenance</h1>
+      <p className='text-sm opacity-60' style={{ color: theme.textColor }}>
+        We're currently performing maintenance. Please check back later.
+      </p>
+    </div>
+  )
 
   return (
     <div style={{ fontFamily: theme.minecraftMode ? 'Minecraft' : 'sans-serif' }}>

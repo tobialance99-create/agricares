@@ -23,7 +23,10 @@ urlpatterns = [
     path('api/dashboard/', include('accounts.dashboard_urls')),
     path('api/users/', include('accounts.user_urls')),
     path('api/positions/', include('accounts.position_urls')),
+    path('api/system/', include('accounts.system_urls')),
+    path('api/theme/', include('theme.urls')),
 ]
+
 
 
 
