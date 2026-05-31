@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
+import { setAppLoading } from './store/slices/appSlice'
+import PageLoader from './components/ui/PageLoader'
 import minecraftMusic from './assets/sound-minecraft.mp3'
 
 import LandingPage from './pages/LandingPage'
@@ -9,7 +11,6 @@ import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import PendingApproval from './pages/auth/PendingApproval'
 
-import AdminDashboard from './pages/admin/Dashboard'
 import FarmersAccounts from './pages/admin/FarmersAccounts'
 import AdminExtensionWorkers from './pages/admin/ExtensionWorkers'
 import AdminKnowledgeRepository from './pages/admin/KnowledgeRepository'
@@ -62,44 +63,50 @@ function App() {
     }
   }, [theme.minecraftMusic])
 
+const dispatch = useDispatch()
+const isLoading = useSelector((state) => state.app.isLoading)
+
   return (
     <div style={{ fontFamily: theme.minecraftMode ? 'Minecraft' : 'sans-serif' }}>
-      <BrowserRouter>
-        <Routes>
-          {/* Public */}
-          <Route path='/' element={<LandingPage />} />
-          <Route path='/login' element={<Login />} />
-          <Route path='/register' element={<Register />} />
-          <Route path='/forgot-password' element={<ForgotPassword />} />
-          <Route path='/pending-approval' element={<PendingApproval />} />
+      {isLoading && <PageLoader onDone={() => dispatch(setAppLoading(false))} />}
+      <div style={{ visibility: isLoading ? 'hidden' : 'visible' }}>
+        <BrowserRouter>
 
-          {/* Shared */}
-          <Route path='/dashboard' element={<SharedDashboard />} />
-          <Route path='/notifications' element={<SharedNotifications />} />
-          <Route path='/settings' element={<SharedSettings />} />
+          <Routes>
+            {/* Public */}
+            <Route path='/' element={<LandingPage />} />
+            <Route path='/login' element={<Login />} />
+            <Route path='/register' element={<Register />} />
+            <Route path='/forgot-password' element={<ForgotPassword />} />
+            <Route path='/pending-approval' element={<PendingApproval />} />
 
-          {/* Admin */}
-          <Route path='/admin/dashboard' element={<AdminDashboard />} />
-          <Route path='/admin/farmers' element={<FarmersAccounts />} />
-          <Route path='/admin/extension-workers' element={<AdminExtensionWorkers />} />
-          <Route path='/admin/knowledge-repository' element={<AdminKnowledgeRepository />} />
-          <Route path='/admin/reports' element={<Reports />} />
-          <Route path='/admin/settings' element={<AdminSettings />} />
+            {/* Shared */}
+            <Route path='/dashboard' element={<SharedDashboard />} />
+            <Route path='/notifications' element={<SharedNotifications />} />
+            <Route path='/settings' element={<SharedSettings />} />
 
-          {/* Farmer */}
-          <Route path='/farmer/knowledge-repository' element={<FarmerKnowledgeRepository />} />
-          <Route path='/farmer/extension-workers' element={<FarmerExtensionWorkers />} />
+            {/* Admin */}
+            <Route path='/admin/farmers' element={<FarmersAccounts />} />
+            <Route path='/admin/extension-workers' element={<AdminExtensionWorkers />} />
+            <Route path='/admin/knowledge-repository' element={<AdminKnowledgeRepository />} />
+            <Route path='/admin/reports' element={<Reports />} />
+            <Route path='/admin/settings' element={<AdminSettings />} />
 
-          {/* Extension Worker */}
-          <Route path='/extension-worker/tickets' element={<Tickets />} />
+            {/* Farmer */}
+            <Route path='/farmer/knowledge-repository' element={<FarmerKnowledgeRepository />} />
+            <Route path='/farmer/extension-workers' element={<FarmerExtensionWorkers />} />
 
-          {/* SuperAdmin */}
-          <Route path='/system/init' element={<Init />} />
-          <Route path='/system/panel/overview' element={<Overview />} />
-          <Route path='/system/panel/endpoints' element={<Endpoints />} />
-          <Route path='/system/panel/control' element={<SystemControl />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Extension Worker */}
+            <Route path='/extension-worker/tickets' element={<Tickets />} />
+
+            {/* SuperAdmin */}
+            <Route path='/system/init' element={<Init />} />
+            <Route path='/system/panel/overview' element={<Overview />} />
+            <Route path='/system/panel/endpoints' element={<Endpoints />} />
+            <Route path='/system/panel/control' element={<SystemControl />} />
+          </Routes>
+        </BrowserRouter>
+      </div>
     </div>
   )
 }

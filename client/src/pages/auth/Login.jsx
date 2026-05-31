@@ -8,6 +8,9 @@ import { GiWheat } from 'react-icons/gi'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import logoMinecraft from '../../assets/logo-minecraft.png'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
+import { AiOutlineLoading3Quarters } from 'react-icons/ai'
+import { setAppLoading } from '../../store/slices/appSlice'
+import Dialog from '../../components/ui/Dialog'
 import Button from '../../components/ui/Button'
 
 const Login = () => {
@@ -16,7 +19,7 @@ const Login = () => {
     const navigate = useNavigate()
     const theme = useSelector((state) => state.theme)
     const dispatch = useDispatch()
-
+    const [loadingMessage, setLoadingMessage] = useState(null)
     const [form, setForm] = useState({ identifier: '', password: '', rememberMe: false })
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
@@ -29,6 +32,7 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setLoadingMessage('Logging in...')
         setLoading(true)
         setError(null)
         try {
@@ -36,14 +40,16 @@ const Login = () => {
             setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
             dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
             const userRole = res.data.user.role
-            if (userRole === 'admin') navigate('/admin/dashboard')
-            else if (userRole === 'farmer') navigate('/farmer/knowledge-repository')
-            else if (userRole === 'extension_worker') navigate('/extension-worker/tickets')
+            const path = '/dashboard'
+            dispatch(setAppLoading(true))
+            navigate(path)
         } catch (err) {
+            setLoadingMessage(null)
             const msg = err.response?.data?.error
             if (err.response?.data?.isPending) navigate('/pending-approval')
             else setError(msg || 'Invalid credentials. Please try again.')
         } finally {
+            setLoadingMessage(null)
             setLoading(false)
         }
     }
@@ -117,7 +123,7 @@ const Login = () => {
                             <Link to='/forgot-password' className='text-sm' style={{ color: theme.primaryColor }}>Forgot Password?</Link>
                         </div>
 
-                        <Button type='submit' loading={loading} className='w-full mt-2'>Login</Button>
+                        <Button type='submit' disabled={!!loadingMessage} className='w-full mt-2'>Login</Button>
 
                         {role !== 'admin' && (
                             <p className='text-center text-sm' style={{ color: theme.textColor }}>
@@ -127,6 +133,11 @@ const Login = () => {
                         )}
                     </form>
                 </div>
+                <Dialog isOpen={!!loadingMessage} title={loadingMessage}>
+                    <div className='flex justify-center py-2'>
+                        <AiOutlineLoading3Quarters size={28} className='animate-spin' color={theme.primaryColor} />
+                    </div>
+                </Dialog>
 
                 <p className='text-center text-sm text-white opacity-60 mt-4 cursor-pointer' onClick={() => navigate('/')}>
                     ← Back to Home

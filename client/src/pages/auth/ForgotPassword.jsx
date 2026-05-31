@@ -4,12 +4,14 @@ import { useSelector } from 'react-redux'
 import api from '../../services/api'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
+import { AiOutlineLoading3Quarters } from 'react-icons/ai'
+import Dialog from '../../components/ui/Dialog'
 import Button from '../../components/ui/Button'
 
 const ForgotPassword = () => {
     const navigate = useNavigate()
     const theme = useSelector((state) => state.theme)
-
+    const [loadingMessage, setLoadingMessage] = useState(null)
     const [step, setStep] = useState(1)
     const [identifier, setIdentifier] = useState('')
     const [mobileNumber, setMobileNumber] = useState('')
@@ -22,6 +24,7 @@ const ForgotPassword = () => {
 
     const handleStep1 = async (e) => {
         e.preventDefault()
+        setLoadingMessage('Sending OTP...')
         setLoading(true)
         setError(null)
         try {
@@ -29,38 +32,46 @@ const ForgotPassword = () => {
             setMobileNumber(res.data.mobileNumber)
             setStep(2)
         } catch (err) {
+            setLoadingMessage(null)
             setError(err.response?.data?.error || 'User not found. Please try again.')
         } finally {
+            setLoadingMessage(null)
             setLoading(false)
         }
     }
 
     const handleStep2 = async (e) => {
         e.preventDefault()
+        setLoadingMessage('Verifying OTP...')
         setLoading(true)
         setError(null)
         try {
             await api.post('/auth/verify-otp/', { mobileNumber, otp })
             setStep(3)
         } catch (err) {
+            setLoadingMessage(null)
             setError(err.response?.data?.error || 'Invalid OTP. Please try again.')
         } finally {
             setLoading(false)
+            setLoadingMessage(null)
         }
     }
 
     const handleStep3 = async (e) => {
         e.preventDefault()
         if (form.password !== form.confirmPassword) return setError('Passwords do not match')
+        setLoadingMessage('Resetting password...')
         setLoading(true)
         setError(null)
         try {
-        await api.post('/auth/reset-password/', { identifier, password: form.password })
+            await api.post('/auth/reset-password/', { identifier, password: form.password })
             setStep(4)
         } catch (err) {
+            setLoadingMessage(null)
             setError(err.response?.data?.error || 'Failed to reset password. Please try again.')
         } finally {
             setLoading(false)
+            setLoadingMessage(null)
         }
     }
 
@@ -96,7 +107,7 @@ const ForgotPassword = () => {
                                     className='w-full px-4 py-2.5 text-sm outline-none border'
                                     style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                             </div>
-                            <Button type='submit' loading={loading}>Send OTP</Button>
+                            <Button type='submit' disabled={!!loadingMessage}>Send OTP</Button>
                         </form>
                     )}
 
@@ -112,7 +123,7 @@ const ForgotPassword = () => {
                                     className='w-full px-4 py-2.5 text-sm outline-none border text-center tracking-widest'
                                     style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                             </div>
-                            <Button type='submit' loading={loading}>Verify OTP</Button>
+                            <Button type='submit' disabled={!!loadingMessage}>Verify OTP</Button>
                         </form>
                     )}
 
@@ -145,7 +156,7 @@ const ForgotPassword = () => {
                                     </button>
                                 </div>
                             </div>
-                            <Button type='submit' loading={loading}>Reset Password</Button>
+                            <Button type='submit' disabled={!!loadingMessage}>Reset Password</Button>
                         </form>
                     )}
 
@@ -153,10 +164,15 @@ const ForgotPassword = () => {
                     {step === 4 && (
                         <div className='flex flex-col items-center gap-4 text-center'>
                             <p className='text-sm' style={{ color: theme.textColor }}>Password reset successfully!</p>
+                            <Button onClick={() => navigate('/')}>Back to Home</Button>
                         </div>
                     )}
                 </div>
-
+                <Dialog isOpen={!!loadingMessage} title={loadingMessage}>
+                    <div className='flex justify-center py-2'>
+                        <AiOutlineLoading3Quarters size={28} className='animate-spin' color={theme.primaryColor} />
+                    </div>
+                </Dialog>
                 <p className='text-center text-sm text-white opacity-60 mt-4 cursor-pointer' onClick={() => navigate('/')}>
                     ← Back to Home
                 </p>

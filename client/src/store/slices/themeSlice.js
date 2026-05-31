@@ -11,7 +11,7 @@ const defaultTheme = {
     minecraftLogo: true,
     minecraftHero: true,
     minecraftSteve: true,
-    minecraftMusic: true,
+    minecraftMusic: false,
 }
 
 const themeSlice = createSlice({

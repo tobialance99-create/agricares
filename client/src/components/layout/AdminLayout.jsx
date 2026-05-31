@@ -4,7 +4,7 @@ import Topbar from './Topbar'
 import Sidebar from './Sidebar'
 
 const adminNavLinks = [
-    { label: 'Dashboard', path: '/admin/dashboard', icon: MdDashboard },
+    { label: 'Dashboard', path: '/dashboard', icon: MdDashboard },
     { label: 'Farmers', path: '/admin/farmers', icon: MdPeople },
     { label: 'Extension Workers', path: '/admin/extension-workers', icon: MdSupportAgent },
     { label: 'Knowledge Repository', path: '/admin/knowledge-repository', icon: MdMenuBook },

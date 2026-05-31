@@ -1,14 +1,24 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import { GiWheat } from 'react-icons/gi'
 import logoMinecraft from '../../assets/logo-minecraft.png'
 
-const PageLoader = () => {
+const PageLoader = ({ onDone }) => {
     const theme = useSelector((state) => state.theme)
     const canvasRef = useRef(null)
+    const [fading, setFading] = useState(false)
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            setFading(true)
+            setTimeout(() => onDone?.(), 500)
+        }, 2500)
+        return () => clearTimeout(timer)
+    }, [onDone])
+
+    useEffect(() => {
+
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
         canvas.width = window.innerWidth
@@ -54,7 +64,8 @@ const PageLoader = () => {
     }, [])
 
     return (
-        <div className='fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden'>
+        <div className='fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden'
+            style={{ opacity: 0, animation: fading ? 'fadeOut 0.5s ease forwards' : 'fadeIn 0.5s ease forwards' }}>
             {/* Animated gradient background */}
             <div className='absolute inset-0' style={{
                 background: `linear-gradient(135deg, ${theme.primaryColor}, ${theme.backgroundColor}, ${theme.secondaryColor})`,
@@ -77,7 +88,7 @@ const PageLoader = () => {
                 {theme.minecraftLogo
                     ? <img src={logoMinecraft} alt='logo' className='h-20 w-20 object-contain' />
                     : <GiWheat size={56} color={theme.primaryColor} />
-                    }
+                }
                 <span className='text-3xl font-bold tracking-wide' style={{ color: theme.textColor }}>
                     Agri<span style={{ color: theme.primaryColor }}>Care</span>
                 </span>
