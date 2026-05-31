@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { setCredentials } from '../../store/slices/authSlice'
-import { setCookie, REMEMBER_ME_DAYS } from '../../utils/cookies'
+import { setCookie, REMEMBER_ME_DAYS, setSessionCookie } from '../../utils/cookies'
 import api from '../../services/api'
-import { GiWheat } from 'react-icons/gi'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
-import logoMinecraft from '../../assets/logo-minecraft.png'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import { setAppLoading } from '../../store/slices/appSlice'
@@ -40,13 +38,26 @@ const Login = () => {
             setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
             dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
             const userRole = res.data.user.role
-            const path = '/dashboard'
+            if (userRole !== 'admin') {
+                if (role === 'farmer' && userRole === 'extension_worker') {
+                    setError('Please login as a Farmer.')
+                    return
+                }
+                if (role === 'extension' && userRole === 'farmer') {
+                    setError('Please login as an Extension Worker.')
+                    return
+                }
+            }
             dispatch(setAppLoading(true))
-            navigate(path)
+            navigate('/dashboard')
         } catch (err) {
             setLoadingMessage(null)
             const msg = err.response?.data?.error
             if (err.response?.data?.isPending) navigate('/pending-approval')
+            else if (err.response?.data?.isIncomplete) {
+                setSessionCookie('pendingMobile', err.response.data.mobileNumber)
+                navigate(`/register?role=${role}`)
+            }
             else setError(msg || 'Invalid credentials. Please try again.')
         } finally {
             setLoadingMessage(null)

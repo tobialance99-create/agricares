@@ -4,9 +4,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password, check_password
-from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
-from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, create_user, update_user
-from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified
+from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user
+from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified, mark_registration_verified, mark_registration_completed
+from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
 
 def get_tokens(user_id, role):
     refresh = RefreshToken()
@@ -27,30 +27,27 @@ class RegisterView(APIView):
 
         data = serializer.validated_data
 
-        if get_user_by_username(data['username']):
-            return Response({'error': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
-
         if get_user_by_mobile(data['mobileNumber']):
             return Response({'error': 'Mobile number already exists'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if get_user_by_email(data['email']):
+            return Response({'error': 'Email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
 
         try:
-            success = send_otp(data['mobileNumber'])
+            success = send_otp(data['mobileNumber'], email=data.get('email'))
             if not success:
                 return Response({'error': 'Failed to send OTP'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         store_pending_registration(data['mobileNumber'], {
-            'firstName': data['firstName'],
-            'lastName': data['lastName'],
-            'barangay': data.get('barangay', ''),
-            'username': data['username'],
             'mobileNumber': data['mobileNumber'],
+            'email': data['email'],
             'passwordHash': make_password(data['password']),
             'role': data['role'],
             'isPending': data['role'] == 'extension_worker',
         })
-
         return Response({'message': 'OTP sent successfully'}, status=status.HTTP_200_OK)
 
 
@@ -90,10 +87,10 @@ class VerifyOTPView(APIView):
             user_data = get_pending_registration(mobile_number)
             if not user_data:
                 return Response({'error': 'Registration data expired. Please register again.'}, status=status.HTTP_400_BAD_REQUEST)
-            create_user(user_data)
-            clear_pending_registration(mobile_number)
+            mark_registration_verified(mobile_number)
         else:
             mark_otp_verified(mobile_number)
+
 
         return Response({'message': 'OTP verified successfully'})
 
@@ -112,7 +109,13 @@ class LoginView(APIView):
         user = get_user_by_identifier(identifier)
 
         if not user:
+            pending = get_pending_registration(identifier)
+            if not pending and identifier.startswith('0'):
+                pending = get_pending_registration(identifier)
+            if pending and pending.get('isVerified') and not pending.get('isCompleted'):
+                return Response({'error': 'Registration not completed', 'isIncomplete': True, 'mobileNumber': pending.get('mobileNumber')}, status=status.HTTP_403_FORBIDDEN)
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
 
         if not user.get('isActive'):
             return Response({'error': 'Account is disabled'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -207,3 +210,63 @@ class CheckMobileView(APIView):
             return Response({'available': False})
         user = get_user_by_mobile(mobile)
         return Response({'available': user is None})
+    
+class CheckEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        email = request.query_params.get('email', '')
+        if not email:
+            return Response({'available': False})
+        user = get_user_by_email(email)
+        return Response({'available': user is None})
+    
+class CompleteRegistrationView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = CompleteRegistrationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        mobile_number = data['mobileNumber']
+
+        user_data = get_pending_registration(mobile_number)
+        if not user_data:
+            return Response({'error': 'Registration data expired. Please register again.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user_data.get('isVerified'):
+            return Response({'error': 'OTP not verified.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if get_user_by_username(data['username']):
+            return Response({'error': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_data['firstName'] = data['firstName']
+        user_data['lastName'] = data['lastName']
+        user_data['barangay'] = data.get('barangay', '')
+        user_data['username'] = data['username']
+        user_data['positionId'] = data.get('positionId', '')
+
+        create_user(user_data)
+        mark_registration_completed(mobile_number)
+        clear_pending_registration(mobile_number)
+
+        return Response({'message': 'Registration completed successfully'}, status=status.HTTP_201_CREATED)
+
+
+class CheckPendingView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        mobile_number = request.query_params.get('mobile', '')
+        if not mobile_number:
+            return Response({'status': 'none'})
+        user_data = get_pending_registration(mobile_number)
+        if not user_data:
+            return Response({'status': 'none'})
+        if user_data.get('isVerified') and not user_data.get('isCompleted'):
+            return Response({'status': 'verified'})
+        if not user_data.get('isVerified'):
+            return Response({'status': 'pending'})
+        return Response({'status': 'none'})

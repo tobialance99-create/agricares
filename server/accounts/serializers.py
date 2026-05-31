@@ -1,11 +1,8 @@
 from rest_framework import serializers
 
 class RegisterSerializer(serializers.Serializer):
-    firstName = serializers.CharField()
-    lastName = serializers.CharField()
-    barangay = serializers.CharField(required=False, allow_blank=True)
-    username = serializers.CharField()
     mobileNumber = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     role = serializers.ChoiceField(choices=['farmer', 'extension_worker'])
 
@@ -27,4 +24,13 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    
+class CompleteRegistrationSerializer(serializers.Serializer):
+    mobileNumber = serializers.CharField()
+    firstName = serializers.CharField()
+    lastName = serializers.CharField()
+    barangay = serializers.CharField(required=False, allow_blank=True)
+    username = serializers.CharField()
+    positionId = serializers.CharField(required=False, allow_blank=True)
+
 

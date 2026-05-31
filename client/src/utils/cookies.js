@@ -18,4 +18,9 @@ export const deleteCookie = (name) => {
     document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
 }
 
+export const setSessionCookie = (name, value) => {
+    document.cookie = `${name}=${encodeURIComponent(value)};path=/;SameSite=Strict`
+}
+
+
 export const REMEMBER_ME_DAYS = 7

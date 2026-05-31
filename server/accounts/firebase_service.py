@@ -23,6 +23,12 @@ def get_user_by_id(user_id):
         return {'id': doc.id, **doc.to_dict()}
     return None
 
+def get_user_by_email(email):
+    docs = db.collection(USERS_COLLECTION).where('email', '==', email).limit(1).get()
+    for doc in docs:
+        return {'id': doc.id, **doc.to_dict()}
+    return None
+
 def create_user(data):
     doc_ref = db.collection(USERS_COLLECTION).document()
     doc_ref.set({
@@ -31,6 +37,7 @@ def create_user(data):
         'barangay': data.get('barangay', ''),
         'username': data['username'],
         'mobileNumber': data['mobileNumber'],
+        'email': data.get('email', ''),
         'passwordHash': data['passwordHash'],
         'role': data['role'],
         'isActive': True,

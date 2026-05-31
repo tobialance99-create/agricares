@@ -4,7 +4,6 @@ import { useSelector } from 'react-redux'
 import { GiWheat } from 'react-icons/gi'
 import { FaUserAlt } from 'react-icons/fa'
 import { MdSupportAgent } from 'react-icons/md'
-import { RiAdminFill } from 'react-icons/ri'
 import heroMinecraft from '../assets/hero-minecraft.jpg'
 import logoMinecraft from '../assets/logo-minecraft.png'
 import steveImg from '../assets/running-steve.png'
@@ -116,13 +115,6 @@ const LandingPage = () => {
                             <span className='text-sm font-semibold' style={{ color: '#1976d2' }}>Extension Worker</span>
                             <span className='text-xs text-center' style={{ color: '#1976d2', opacity: 0.7 }}>Respond, assist, and resolve farmer tickets efficiently</span>
                         </div>
-                        {dialog.type === 'login' && (
-                            <div onClick={() => handleRoleSelect('admin')} className='flex flex-col items-center justify-start gap-2 p-8 w-48 cursor-pointer rounded-lg transition-opacity hover:opacity-80' style={{ backgroundColor: '#fff3e0', border: '2px solid #f57c00' }}>
-                                <RiAdminFill size={40} color='#f57c00' />
-                                <span className='text-sm font-semibold' style={{ color: '#f57c00' }}>Admin</span>
-                                <span className='text-xs text-center' style={{ color: '#f57c00', opacity: 0.7 }}>Manage accounts, monitor tickets, and oversee the entire system</span>
-                            </div>
-                        )}
                     </div>
                     <Button variant='ghost' onClick={closeDialog}>Cancel</Button>
                     {theme.minecraftMode && (

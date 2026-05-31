@@ -5,8 +5,9 @@ import api from '../../services/api'
 import { FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import Dialog from '../../components/ui/Dialog'
-import heroMinecraft from '../../assets/hero-minecraft.jpg'
 import Button from '../../components/ui/Button'
+import heroMinecraft from '../../assets/hero-minecraft.jpg'
+import { setSessionCookie, getCookie, deleteCookie } from '../../utils/cookies'
 
 const Register = () => {
     const [searchParams] = useSearchParams()
@@ -15,17 +16,21 @@ const Register = () => {
     const theme = useSelector((state) => state.theme)
 
     const [step, setStep] = useState(1)
-    const [form, setForm] = useState({ firstName: '', lastName: '', barangay: '', username: '', mobileNumber: '', password: '', confirmPassword: '' })
+    const [form, setForm] = useState({ mobileNumber: '', email: '', password: '', confirmPassword: '' })
+    const [personalForm, setPersonalForm] = useState({ firstName: '', lastName: '', barangay: '', username: '', positionId: '' })
+    const [positions, setPositions] = useState([])
     const [otp, setOtp] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirm, setShowConfirm] = useState(false)
     const [loading, setLoading] = useState(false)
     const [countdown, setCountdown] = useState(3)
     const [error, setError] = useState(null)
-    const [usernameStatus, setUsernameStatus] = useState(null) // null | 'checking' | 'available' | 'taken'
     const [mobileStatus, setMobileStatus] = useState(null)
+    const [usernameStatus, setUsernameStatus] = useState(null)
+    const [emailStatus, setEmailStatus] = useState(null)
     const [dialog, setDialog] = useState({ open: false, type: null, messages: [] })
     const [loadingMessage, setLoadingMessage] = useState(null)
+
     const passwordReqs = {
         minLength: form.password.length >= 8,
         hasUpper: /[A-Z]/.test(form.password),
@@ -33,48 +38,97 @@ const Register = () => {
         hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(form.password),
     }
     const allReqsMet = Object.values(passwordReqs).every(Boolean)
-
     const roleLabel = role === 'farmer' ? 'Farmer' : 'Extension Worker'
+
+    // Check pending registration on mount
+    useEffect(() => {
+        const pendingMobile = getCookie('pendingMobile')
+        if (pendingMobile) {
+            api.get(`/auth/check-pending/?mobile=${pendingMobile}`).then(res => {
+                if (res.data.status === 'verified') {
+                    setForm(prev => ({ ...prev, mobileNumber: pendingMobile }))
+                    setStep(3)
+                } else if (res.data.status === 'none') {
+                    deleteCookie('pendingMobile')
+                }
+            }).catch(() => deleteCookie('pendingMobile'))
+        }
+    }, [])
+
+    // Fetch positions for extension worker
+    useEffect(() => {
+        if (role === 'extension') {
+            api.get('/positions/').then(res => setPositions(res.data.filter(p => p.isActive)))
+        }
+    }, [role])
+
+    // Mobile debounce check
+    useEffect(() => {
+        if (!form.mobileNumber) return setMobileStatus(null)
+        setMobileStatus('checking')
+        const timer = setTimeout(async () => {
+            const res = await api.get(`/auth/check-mobile/?mobile=${form.mobileNumber}`)
+            setMobileStatus(res.data.available ? 'available' : 'taken')
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [form.mobileNumber])
+
+    // Username debounce check
+    useEffect(() => {
+        if (!personalForm.username) return setUsernameStatus(null)
+        setUsernameStatus('checking')
+        const timer = setTimeout(async () => {
+            const res = await api.get(`/auth/check-username/?username=${personalForm.username}`)
+            setUsernameStatus(res.data.available ? 'available' : 'taken')
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [personalForm.username])
+
+    useEffect(() => {
+        if (!form.email) return setEmailStatus(null)
+        setEmailStatus('checking')
+        const timer = setTimeout(async () => {
+            const res = await api.get(`/auth/check-email/?email=${form.email}`)
+            setEmailStatus(res.data.available ? 'available' : 'taken')
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [form.email])
 
     const handleChange = (e) => {
         const { name, value } = e.target
-        setForm((prev) => ({ ...prev, [name]: value }))
+        setForm(prev => ({ ...prev, [name]: value }))
+    }
+
+    const handlePersonalChange = (e) => {
+        const { name, value } = e.target
+        setPersonalForm(prev => ({ ...prev, [name]: value }))
     }
 
     const handleStep1 = async (e) => {
         e.preventDefault()
-
         const missing = []
-        if (!form.firstName) missing.push('First Name')
-        if (!form.lastName) missing.push('Last Name')
-        if (role === 'farmer' && !form.barangay) missing.push('Barangay')
-        if (!form.username) missing.push('Username')
         if (!form.mobileNumber) missing.push('Mobile Number')
+        if (!form.email) missing.push('Email')
+        if (emailStatus === 'taken') missing.push('Email is already registered')
         if (!form.password) missing.push('Password')
         if (!form.confirmPassword) missing.push('Confirm Password')
-        if (usernameStatus === 'taken') missing.push('Username is already taken')
         if (mobileStatus === 'taken') missing.push('Mobile number is already registered')
         if (!allReqsMet) missing.push('Password does not meet all requirements')
         if (form.password !== form.confirmPassword) missing.push('Passwords do not match')
+        if (missing.length > 0) return setDialog({ open: true, type: 'error', messages: missing })
 
-        if (missing.length > 0) {
-            setDialog({ open: true, type: 'error', messages: missing })
-            return
-        }
-        setLoadingMessage('Registering your account...')
+        setLoadingMessage('Sending OTP...')
         setLoading(true)
         setError(null)
         try {
             await api.post('/auth/register/', {
-                firstName: form.firstName,
-                lastName: form.lastName,
-                barangay: form.barangay,
-                username: form.username,
                 mobileNumber: form.mobileNumber,
+                email: form.email,
                 password: form.password,
                 role: role === 'farmer' ? 'farmer' : 'extension_worker',
             })
             setLoadingMessage(null)
+            setSessionCookie('pendingMobile', form.mobileNumber)
             setCountdown(3)
             setDialog({ open: true, type: 'success', messages: [] })
             const interval = setInterval(() => {
@@ -113,28 +167,41 @@ const Register = () => {
         }
     }
 
-    useEffect(() => {
-        if (!form.username) return setUsernameStatus(null)
-        setUsernameStatus('checking')
-        const timer = setTimeout(async () => {
-            const res = await api.get(`/auth/check-username/?username=${form.username}`)
-            setUsernameStatus(res.data.available ? 'available' : 'taken')
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [form.username])
+    const handleStep3 = async (e) => {
+        e.preventDefault()
+        const missing = []
+        if (!personalForm.firstName) missing.push('First Name')
+        if (!personalForm.lastName) missing.push('Last Name')
+        if (!personalForm.username) missing.push('Username')
+        if (role === 'farmer' && !personalForm.barangay) missing.push('Barangay')
+        if (role === 'extension' && !personalForm.positionId) missing.push('Position')
+        if (usernameStatus === 'taken') missing.push('Username is already taken')
+        if (missing.length > 0) return setDialog({ open: true, type: 'error', messages: missing })
 
-    useEffect(() => {
-        if (!form.mobileNumber) return setMobileStatus(null)
-        setMobileStatus('checking')
-        const timer = setTimeout(async () => {
-            const res = await api.get(`/auth/check-mobile/?mobile=${form.mobileNumber}`)
-            setMobileStatus(res.data.available ? 'available' : 'taken')
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [form.mobileNumber])
+        setLoadingMessage('Creating your account...')
+        setLoading(true)
+        setError(null)
+        try {
+            await api.post('/auth/complete-registration/', {
+                mobileNumber: form.mobileNumber,
+                firstName: personalForm.firstName,
+                lastName: personalForm.lastName,
+                barangay: personalForm.barangay,
+                username: personalForm.username,
+                positionId: personalForm.positionId,
+            })
+            setLoadingMessage(null)
+            deleteCookie('pendingMobile')
+            setStep(4)
+        } catch (err) {
+            setLoadingMessage(null)
+            setDialog({ open: true, type: 'error', messages: [err.response?.data?.error || 'Failed to complete registration.'] })
+        } finally {
+            setLoading(false)
+        }
+    }
 
-
-
+    const stepTitles = ['Account Setup', 'OTP Verification', 'Personal Info', 'Done']
 
     return (
         <div className='min-h-screen flex items-center justify-center relative'
@@ -151,59 +218,39 @@ const Register = () => {
 
                 {/* Card */}
                 <div className='rounded-xl shadow-2xl' style={{ backgroundColor: theme.backgroundColor }}>
-                    {/* Form */}
                     <div className='p-8'>
-                        <span className='text-4xl font-semibold mb-4 block text-center' style={{ color: theme.textColor }}>{roleLabel} Register</span>
+                        <span className='text-4xl font-semibold mb-2 block text-center' style={{ color: theme.textColor }}>{roleLabel} Register</span>
+
+                        {/* Step Indicator */}
+                        <div className='flex items-center justify-center gap-2 mb-6'>
+                            {[1, 2, 3, 4].map(s => (
+                                <div key={s} className='flex items-center gap-2'>
+                                    <div className='w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold'
+                                        style={{ backgroundColor: step >= s ? theme.primaryColor : theme.secondaryColor + '40', color: step >= s ? '#fff' : theme.textColor }}>
+                                        {s}
+                                    </div>
+                                    {s < 4 && <div className='w-6 h-0.5' style={{ backgroundColor: step > s ? theme.primaryColor : theme.secondaryColor + '40' }} />}
+                                </div>
+                            ))}
+                        </div>
+
+                        <p className='text-center text-sm font-medium mb-4 opacity-70' style={{ color: theme.textColor }}>{stepTitles[step - 1]}</p>
+
                         {error && (
                             <div className='mb-4 p-3 rounded text-sm text-red-600' style={{ backgroundColor: '#fee2e2' }}>
                                 {error}
                             </div>
                         )}
 
-                        {/* Step 1 - Form */}
+                        {/* Step 1 - Account Setup */}
                         {step === 1 && (
                             <form onSubmit={handleStep1} className='flex flex-col gap-4'>
-                                <div className='flex gap-3'>
-                                    <div className='flex flex-col gap-1 flex-1'>
-                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>First Name</label>
-                                        <input name='firstName' value={form.firstName} onChange={handleChange} placeholder='First name'
-                                            className='w-full px-4 py-2.5 text-sm outline-none border'
-                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
-                                    </div>
-                                    <div className='flex flex-col gap-1 flex-1'>
-                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>Last Name</label>
-                                        <input name='lastName' value={form.lastName} onChange={handleChange} placeholder='Last name'
-                                            className='w-full px-4 py-2.5 text-sm outline-none border'
-                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
-                                    </div>
-                                </div>
-
-                                {role === 'farmer' && (
-                                    <div className='flex flex-col gap-1'>
-                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>Barangay</label>
-                                        <input name='barangay' value={form.barangay} onChange={handleChange} placeholder='Enter barangay'
-                                            className='w-full px-4 py-2.5 text-sm outline-none border'
-                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
-                                    </div>
-                                )}
-
-                                <div className='flex flex-col gap-1'>
-                                    <label className='text-sm font-medium' style={{ color: theme.textColor }}>Username</label>
-                                    <div className='relative'>
-                                        <input name='username' value={form.username} onChange={handleChange} placeholder='Enter username'
-                                            className='w-full px-4 py-2.5 text-sm outline-none border pr-8'
-                                            style={{ borderRadius: theme.borderRadius, borderColor: usernameStatus === 'taken' ? theme.dangerColor : usernameStatus === 'available' ? '#22c55e' : theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
-                                        {usernameStatus === 'checking' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50'>...</span>}
-                                        {usernameStatus === 'available' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm'>✓</span>}
-                                        {usernameStatus === 'taken' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm'>✗</span>}
-                                    </div>
-                                    {usernameStatus === 'taken' && <span className='text-xs' style={{ color: theme.dangerColor }}>Username is already taken</span>}
-                                </div>
-
                                 <div className='flex flex-col gap-1'>
                                     <label className='text-sm font-medium' style={{ color: theme.textColor }}>Mobile Number</label>
                                     <div className='relative'>
-                                        <input name='mobileNumber' type='tel' value={form.mobileNumber} onChange={(e) => setForm(prev => ({ ...prev, mobileNumber: e.target.value.replace(/\D/g, '') }))} placeholder='Enter mobile number'
+                                        <input name='mobileNumber' type='tel' value={form.mobileNumber}
+                                            onChange={(e) => setForm(prev => ({ ...prev, mobileNumber: e.target.value.replace(/\D/g, '') }))}
+                                            placeholder='Enter mobile number'
                                             className='w-full px-4 py-2.5 text-sm outline-none border pr-8'
                                             style={{ borderRadius: theme.borderRadius, borderColor: mobileStatus === 'taken' ? theme.dangerColor : mobileStatus === 'available' ? '#22c55e' : theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                                         {mobileStatus === 'checking' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50'>...</span>}
@@ -211,6 +258,19 @@ const Register = () => {
                                         {mobileStatus === 'taken' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm'>✗</span>}
                                     </div>
                                     {mobileStatus === 'taken' && <span className='text-xs' style={{ color: theme.dangerColor }}>Mobile number is already registered</span>}
+                                </div>
+
+                                <div className='flex flex-col gap-1'>
+                                    <label className='text-sm font-medium' style={{ color: theme.textColor }}>Email</label>
+                                    <div className='relative'>
+                                        <input name='email' type='email' value={form.email} onChange={handleChange} placeholder='Enter email address'
+                                            className='w-full px-4 py-2.5 text-sm outline-none border pr-8'
+                                            style={{ borderRadius: theme.borderRadius, borderColor: emailStatus === 'taken' ? theme.dangerColor : emailStatus === 'available' ? '#22c55e' : theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                        {emailStatus === 'checking' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50'>...</span>}
+                                        {emailStatus === 'available' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm'>✓</span>}
+                                        {emailStatus === 'taken' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm'>✗</span>}
+                                    </div>
+                                    {emailStatus === 'taken' && <span className='text-xs' style={{ color: theme.dangerColor }}>Email is already registered</span>}
                                 </div>
 
                                 <div className='flex flex-col gap-1'>
@@ -242,7 +302,8 @@ const Register = () => {
                                 </div>
 
                                 <div className='flex flex-col gap-1'>
-                                    <label className='text-sm font-medium' style={{ color: theme.textColor }}>Confirm Password</label><div className='relative'>
+                                    <label className='text-sm font-medium' style={{ color: theme.textColor }}>Confirm Password</label>
+                                    <div className='relative'>
                                         <input name='confirmPassword' type={showConfirm ? 'text' : 'password'} value={form.confirmPassword} onChange={handleChange} placeholder='Confirm password'
                                             className='w-full px-4 py-2.5 text-sm outline-none border pr-10'
                                             style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
@@ -252,8 +313,7 @@ const Register = () => {
                                     </div>
                                 </div>
 
-                                <Button type='submit' disabled={!!loadingMessage} className='w-full mt-2'>Register</Button>
-
+                                <Button type='submit' disabled={!!loadingMessage}>Next</Button>
                                 <p className='text-center text-sm' style={{ color: theme.textColor }}>
                                     Already have an account?{' '}
                                     <Link to={`/login?role=${role}`} style={{ color: theme.primaryColor }} className='font-medium'>Login</Link>
@@ -265,11 +325,11 @@ const Register = () => {
                         {step === 2 && (
                             <form onSubmit={handleStep2} className='flex flex-col gap-4'>
                                 <p className='text-sm text-center' style={{ color: theme.textColor, opacity: 0.7 }}>
-                                    We sent an OTP to your mobile number <strong>{form.mobileNumber}</strong>
+                                    We sent an OTP to <strong>{form.email || form.mobileNumber}</strong>
                                 </p>
                                 <div className='flex flex-col gap-1'>
                                     <label className='text-sm font-medium' style={{ color: theme.textColor }}>Enter OTP</label>
-                                    <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder='Enter OTP' required maxLength={6}
+                                    <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder='Enter OTP' maxLength={6}
                                         className='w-full px-4 py-2.5 text-sm outline-none border text-center tracking-widest'
                                         style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                                 </div>
@@ -278,8 +338,66 @@ const Register = () => {
                             </form>
                         )}
 
-                        {/* Step 3 - Success */}
+                        {/* Step 3 - Personal Info */}
                         {step === 3 && (
+                            <form onSubmit={handleStep3} className='flex flex-col gap-4'>
+                                <div className='flex gap-3'>
+                                    <div className='flex flex-col gap-1 flex-1'>
+                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>First Name</label>
+                                        <input name='firstName' value={personalForm.firstName} onChange={handlePersonalChange} placeholder='First name'
+                                            className='w-full px-4 py-2.5 text-sm outline-none border'
+                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                    </div>
+                                    <div className='flex flex-col gap-1 flex-1'>
+                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>Last Name</label>
+                                        <input name='lastName' value={personalForm.lastName} onChange={handlePersonalChange} placeholder='Last name'
+                                            className='w-full px-4 py-2.5 text-sm outline-none border'
+                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                    </div>
+                                </div>
+
+                                <div className='flex flex-col gap-1'>
+                                    <label className='text-sm font-medium' style={{ color: theme.textColor }}>Username</label>
+                                    <div className='relative'>
+                                        <input name='username' value={personalForm.username} onChange={handlePersonalChange} placeholder='Enter username'
+                                            className='w-full px-4 py-2.5 text-sm outline-none border pr-8'
+                                            style={{ borderRadius: theme.borderRadius, borderColor: usernameStatus === 'taken' ? theme.dangerColor : usernameStatus === 'available' ? '#22c55e' : theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                        {usernameStatus === 'checking' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50'>...</span>}
+                                        {usernameStatus === 'available' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm'>✓</span>}
+                                        {usernameStatus === 'taken' && <span className='absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm'>✗</span>}
+                                    </div>
+                                    {usernameStatus === 'taken' && <span className='text-xs' style={{ color: theme.dangerColor }}>Username is already taken</span>}
+                                </div>
+
+                                {role === 'farmer' && (
+                                    <div className='flex flex-col gap-1'>
+                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>Barangay</label>
+                                        <input name='barangay' value={personalForm.barangay} onChange={handlePersonalChange} placeholder='Enter barangay'
+                                            className='w-full px-4 py-2.5 text-sm outline-none border'
+                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                    </div>
+                                )}
+
+                                {role === 'extension' && (
+                                    <div className='flex flex-col gap-1'>
+                                        <label className='text-sm font-medium' style={{ color: theme.textColor }}>Position</label>
+                                        <select name='positionId' value={personalForm.positionId} onChange={handlePersonalChange}
+                                            className='w-full px-4 py-2.5 text-sm outline-none border'
+                                            style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }}>
+                                            <option value=''>Select position...</option>
+                                            {positions.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <Button type='submit' disabled={!!loadingMessage}>Complete Registration</Button>
+                            </form>
+                        )}
+
+                        {/* Step 4 - Success */}
+                        {step === 4 && (
                             <div className='flex flex-col items-center gap-4 text-center'>
                                 {role === 'farmer' ? (
                                     <>
@@ -295,6 +413,7 @@ const Register = () => {
                             </div>
                         )}
                     </div>
+
                     {/* Loading Dialog */}
                     <Dialog isOpen={!!loadingMessage} title={loadingMessage}>
                         <div className='flex justify-center py-2'>
@@ -312,7 +431,7 @@ const Register = () => {
                         {dialog.type === 'success' ? (
                             <div className='text-center'>
                                 <p className='text-sm' style={{ color: theme.textColor }}>
-                                    OTP has been sent to <strong>{form.mobileNumber}</strong>
+                                    OTP has been sent to <strong>{form.email || form.mobileNumber}</strong>
                                 </p>
                                 <p className='text-xs opacity-60 mt-2' style={{ color: theme.textColor }}>
                                     Redirecting in {countdown} {countdown === 1 ? 'second' : 'seconds'}...
@@ -333,8 +452,8 @@ const Register = () => {
                             </div>
                         )}
                     </Dialog>
-
                 </div>
+
                 <p className='text-center text-sm text-white opacity-60 mt-4 cursor-pointer' onClick={() => navigate('/')}>
                     ← Back to Home
                 </p>

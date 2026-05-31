@@ -52,7 +52,7 @@ def verify_otp(mobile_number, otp):
         return True
 
 
-def send_otp(mobile_number):
+def send_otp(mobile_number, email=None):
     otp = generate_otp()
     store_otp(mobile_number, otp)
 
@@ -60,18 +60,56 @@ def send_otp(mobile_number):
         print(f'[DEV] OTP for {mobile_number}: {otp}')
         return True
 
-    response = requests.post('https://api.semaphore.co/api/v4/messages', data={
-        'apikey': os.getenv('SEMAPHORE_API_KEY'),
-        'number': mobile_number,
+    if email:
+        from django.core.mail import EmailMultiAlternatives
+        html_message = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background-color: #fff9e9; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="color: #204a0e; font-size: 28px; margin: 0;">
+                    Agri<span style="color: #478347;">Care</span>
+                </h1>
+                <p style="color: #478347; font-size: 14px; margin: 4px 0 0;">Smart Farming Support System</p>
+            </div>
+            <div style="background-color: #fff; border-radius: 8px; padding: 24px; border: 1px solid #87b787;">
+                <p style="color: #204a0e; font-size: 15px; margin: 0 0 16px;">Hello,</p>
+                <p style="color: #204a0e; font-size: 15px; margin: 0 0 24px;">Your OTP verification code is:</p>
+                <div style="text-align: center; background-color: #d4eed1; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                    <span style="font-size: 36px; font-weight: bold; color: #204a0e; letter-spacing: 8px;">{otp}</span>
+                </div>
+                <p style="color: #478347; font-size: 13px; margin: 0; text-align: center;">Valid for <strong>5 minutes</strong>. Do not share this code.</p>
+            </div>
+            <p style="color: #87b787; font-size: 12px; text-align: center; margin-top: 24px;">
+                If you did not request this, please ignore this email.
+            </p>
+        </div>
+        """
+        email_msg = EmailMultiAlternatives(
+            subject='AgriCare OTP Verification',
+            body=f'Your AgriCare OTP is: {otp}. Valid for 5 minutes.',
+            from_email=os.getenv('EMAIL_HOST_USER'),
+            to=[email],
+        )
+        email_msg.attach_alternative(html_message, 'text/html')
+        email_msg.send()
+        return True
+
+    if mobile_number.startswith('0'):
+        mobile_number = '+63' + mobile_number[1:]
+
+    response = requests.post('https://textbelt.com/text', data={
+        'phone': mobile_number,
         'message': f'Your AgriCare OTP is: {otp}. Valid for 5 minutes.',
-        'sendername': os.getenv('SEMAPHORE_SENDER_NAME', 'AgriCare'),
+        'key': os.getenv('TEXTBELT_API_KEY'),
     })
 
-    if response.status_code != 200:
-        raise Exception(f'Semaphore error: {response.status_code} - {response.text}')
+    result = response.json()
+    if not result.get('success'):
+        raise Exception(f'TextBelt error: {result.get("error")}')
     return True
 
 def store_pending_registration(mobile_number, data):
+    data['isVerified'] = False
+    data['isCompleted'] = False
     if _redis_available():
         redis_client.setex(f'pending_reg:{mobile_number}', OTP_EXPIRY, json.dumps(data))
     else:
@@ -89,10 +127,11 @@ def get_pending_registration(mobile_number):
         if not doc.exists:
             return None
         data = doc.to_dict()
-        if datetime.now(timezone.utc) > data['expiresAt']:
+        parsed = json.loads(data['data'])
+        if not parsed.get('isVerified') and data.get('expiresAt') and datetime.now(timezone.utc) > data['expiresAt']:
             db.collection(PENDING_REG_COLLECTION).document(mobile_number).delete()
             return None
-        return json.loads(data['data'])
+        return parsed
 
 def clear_pending_registration(mobile_number):
     if _redis_available():
@@ -127,5 +166,39 @@ def clear_otp_verified(mobile_number):
         redis_client.delete(f'otp_verified:{mobile_number}')
     else:
         db.collection(OTP_COLLECTION).document(f'verified_{mobile_number}').delete()
+        
+def mark_registration_verified(mobile_number):
+    if _redis_available():
+        data = redis_client.get(f'pending_reg:{mobile_number}')
+        if data:
+            parsed = json.loads(data)
+            parsed['isVerified'] = True
+            redis_client.persist(f'pending_reg:{mobile_number}')
+            redis_client.set(f'pending_reg:{mobile_number}', json.dumps(parsed))
+    else:
+        doc = db.collection(PENDING_REG_COLLECTION).document(mobile_number).get()
+        if doc.exists:
+            data = doc.to_dict()
+            parsed = json.loads(data['data'])
+            parsed['isVerified'] = True
+            db.collection(PENDING_REG_COLLECTION).document(mobile_number).update({
+                'data': json.dumps(parsed),
+                'expiresAt': None
+            })
+            
+def mark_registration_completed(mobile_number):
+    if _redis_available():
+        data = redis_client.get(f'pending_reg:{mobile_number}')
+        if data:
+            parsed = json.loads(data)
+            parsed['isCompleted'] = True
+            redis_client.set(f'pending_reg:{mobile_number}', json.dumps(parsed))
+    else:
+        doc = db.collection(PENDING_REG_COLLECTION).document(mobile_number).get()
+        if doc.exists:
+            data = doc.to_dict()
+            parsed = json.loads(data['data'])
+            parsed['isCompleted'] = True
+            db.collection(PENDING_REG_COLLECTION).document(mobile_number).update({'data': json.dumps(parsed)})
 
 
