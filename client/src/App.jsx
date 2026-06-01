@@ -82,8 +82,7 @@ function App() {
     let pollInterval = null
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsHost = import.meta.env.VITE_WS_URL || `${wsProtocol}//${window.location.host}`
-    const ws = new WebSocket(`${wsHost}/ws/system/`)
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/system/`)
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data)
       if (data.type === 'theme') {
