@@ -5,6 +5,7 @@ const appSlice = createSlice({
     initialState: {
         isLoading: false,
         sessionExpired: false,
+        unauthorized: false,
     },
     reducers: {
         setAppLoading: (state, action) => {
@@ -13,8 +14,11 @@ const appSlice = createSlice({
         setSessionExpired: (state, action) => {
             state.sessionExpired = action.payload
         },
+        setUnauthorized: (state, action) => {
+            state.unauthorized = action.payload
+        },
     },
 })
 
-export const { setAppLoading, setSessionExpired } = appSlice.actions
+export const { setAppLoading, setSessionExpired, setUnauthorized } = appSlice.actions
 export default appSlice.reducer

@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { getCookie } from '../utils/cookies'
 import store from '../store/index'
-import { setSessionExpired } from '../store/slices/appSlice'
+import { setSessionExpired, setUnauthorized } from '../store/slices/appSlice'
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
@@ -17,9 +17,12 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            const token = getCookie('token')
-            if (token) {
+            const state = store.getState()
+            const user = state.auth.user
+            if (user) {
                 store.dispatch(setSessionExpired(true))
+            } else {
+                store.dispatch(setUnauthorized(true))
             }
         }
         return Promise.reject(error)
