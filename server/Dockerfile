@@ -10,4 +10,5 @@ COPY server/ .
 
 EXPOSE 8000
 
-CMD ["python", "-m", "daphne", "-b", "0.0.0.0", "-p", "8000", "core.asgi:application"]
+CMD ["python", "-m", "uvicorn", "core.asgi:application", "--host", "0.0.0.0", "--port", "8000"]
+
