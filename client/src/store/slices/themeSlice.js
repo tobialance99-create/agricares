@@ -7,10 +7,10 @@ const defaultTheme = {
     backgroundColor: '#fff9e9',
     textColor: '#204a0e',
     borderRadius: '8px',
-    minecraftMode: true,
-    minecraftLogo: true,
-    minecraftHero: true,
-    minecraftSteve: true,
+    minecraftMode: false,
+    minecraftLogo: false,
+    minecraftHero: false,
+    minecraftSteve: false,
     minecraftMusic: false,
 }
 
