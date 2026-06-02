@@ -42,6 +42,9 @@ Key Features:
 - WebSocket: Real-time theme/system updates via Django Channels
 - Maintenance Mode: SuperAdmin can disable the entire system
 - Endpoint Control: SuperAdmin can disable individual API endpoints
+- Profile Panel: Slide-out panel from right (avatar click) with layout toggle, change password, logout
+- Session Expired: Blocking dialog on 401 Unauthorized with Login Again button
+- Layout: Switchable between Topbar and Sidebar (saved in permanent cookie)
 
 Local Development:
 - Frontend: npm run dev (port 5173)
