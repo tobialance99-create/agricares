@@ -18,13 +18,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f'User "{username}" already exists'))
             return
 
+        frontend_hash = hashlib.sha256(options['password'].encode()).hexdigest()
+        double_hash = hashlib.sha256(frontend_hash.encode()).hexdigest()
         create_user({
             'firstName': options['firstname'],
             'lastName': options['lastname'],
             'barangay': '',
             'username': username,
             'mobileNumber': options['mobile'],
-            'passwordHash': hashlib.sha256(options['password'].encode()).hexdigest(),
+            'passwordHash': double_hash,
             'role': 'admin',
             'isPending': False,
         })
