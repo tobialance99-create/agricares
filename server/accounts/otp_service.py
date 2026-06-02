@@ -92,19 +92,6 @@ def send_otp(mobile_number, email=None):
         email_msg.attach_alternative(html_message, 'text/html')
         email_msg.send()
         return True
-
-    if mobile_number.startswith('0'):
-        mobile_number = '+63' + mobile_number[1:]
-
-    response = requests.post('https://textbelt.com/text', data={
-        'phone': mobile_number,
-        'message': f'Your AgriCare OTP is: {otp}. Valid for 5 minutes.',
-        'key': os.getenv('TEXTBELT_API_KEY'),
-    })
-
-    result = response.json()
-    if not result.get('success'):
-        raise Exception(f'TextBelt error: {result.get("error")}')
     return True
 
 def store_pending_registration(mobile_number, data):
