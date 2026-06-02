@@ -9,7 +9,6 @@ const adminNavLinks = [
     { label: 'Extension Workers', path: '/admin/extension-workers', icon: MdSupportAgent },
     { label: 'Knowledge Repository', path: '/admin/knowledge-repository', icon: MdMenuBook },
     { label: 'Reports', path: '/admin/reports', icon: MdBarChart },
-    { label: 'Settings', path: '/admin/settings', icon: MdSettings },
 ]
 
 const AdminLayout = ({ children, notificationCount = 0 }) => {
