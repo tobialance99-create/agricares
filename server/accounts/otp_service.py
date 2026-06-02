@@ -61,38 +61,40 @@ def send_otp(mobile_number, email=None):
         return True
 
     if email:
-        from django.core.mail import EmailMultiAlternatives
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
         html_message = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background-color: #fff9e9; border-radius: 12px;">
-            <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="color: #204a0e; font-size: 28px; margin: 0;">
-                    Agri<span style="color: #478347;">Care</span>
-                </h1>
-                <p style="color: #478347; font-size: 14px; margin: 4px 0 0;">Smart Farming Support System</p>
-            </div>
-            <div style="background-color: #fff; border-radius: 8px; padding: 24px; border: 1px solid #87b787;">
-                <p style="color: #204a0e; font-size: 15px; margin: 0 0 16px;">Hello,</p>
-                <p style="color: #204a0e; font-size: 15px; margin: 0 0 24px;">Your OTP verification code is:</p>
-                <div style="text-align: center; background-color: #d4eed1; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-                    <span style="font-size: 36px; font-weight: bold; color: #204a0e; letter-spacing: 8px;">{otp}</span>
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background-color: #fff9e9; border-radius: 12px;">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="color: #204a0e; font-size: 28px; margin: 0;">
+                        Agri<span style="color: #478347;">Care</span>
+                    </h1>
+                    <p style="color: #478347; font-size: 14px; margin: 4px 0 0;">Smart Farming Support System</p>
                 </div>
-                <p style="color: #478347; font-size: 13px; margin: 0; text-align: center;">Valid for <strong>5 minutes</strong>. Do not share this code.</p>
+                <div style="background-color: #fff; border-radius: 8px; padding: 24px; border: 1px solid #87b787;">
+                    <p style="color: #204a0e; font-size: 15px; margin: 0 0 16px;">Hello,</p>
+                    <p style="color: #204a0e; font-size: 15px; margin: 0 0 24px;">Your OTP verification code is:</p>
+                    <div style="text-align: center; background-color: #d4eed1; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                        <span style="font-size: 36px; font-weight: bold; color: #204a0e; letter-spacing: 8px;">{otp}</span>
+                    </div>
+                    <p style="color: #478347; font-size: 13px; margin: 0; text-align: center;">Valid for <strong>5 minutes</strong>. Do not share this code.</p>
+                </div>
+                <p style="color: #87b787; font-size: 12px; text-align: center; margin-top: 24px;">
+                    If you did not request this, please ignore this email.
+                </p>
             </div>
-            <p style="color: #87b787; font-size: 12px; text-align: center; margin-top: 24px;">
-                If you did not request this, please ignore this email.
-            </p>
-        </div>
         """
-        email_msg = EmailMultiAlternatives(
+        message = Mail(
+            from_email=os.getenv('SENDGRID_FROM_EMAIL'),
+            to_emails=email,
             subject='AgriCare OTP Verification',
-            body=f'Your AgriCare OTP is: {otp}. Valid for 5 minutes.',
-            from_email=os.getenv('EMAIL_HOST_USER'),
-            to=[email],
+            html_content=html_message
         )
-        email_msg.attach_alternative(html_message, 'text/html')
-        email_msg.send()
+        sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
+        sg.send(message)
         return True
     return True
+
 
 def store_pending_registration(mobile_number, data):
     data['isVerified'] = False

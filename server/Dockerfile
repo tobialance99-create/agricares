@@ -3,6 +3,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 COPY server/requirements.txt .
+RUN python -c "
+import codecs
+with codecs.open('requirements.txt', 'r', encoding='utf-16') as f:
+    content = f.read()
+with open('requirements.txt', 'w', encoding='utf-8') as f:
+    f.write(content)
+" 2>/dev/null || true
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server/ .
