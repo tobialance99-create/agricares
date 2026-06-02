@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { sha256 } from '../../utils/crypto'
 import api from '../../services/api'
 import { FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
@@ -121,10 +122,11 @@ const Register = () => {
         setLoading(true)
         setError(null)
         try {
+            const hashedPassword = await sha256(form.password)
             await api.post('/auth/register/', {
                 mobileNumber: form.mobileNumber,
                 email: form.email,
-                password: form.password,
+                password: hashedPassword,
                 role: role === 'farmer' ? 'farmer' : 'extension_worker',
             })
             setLoadingMessage(null)

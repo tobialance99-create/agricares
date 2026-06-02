@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { sha256 } from '../../utils/crypto'
 import api from '../../services/api'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
@@ -64,7 +65,8 @@ const ForgotPassword = () => {
         setLoading(true)
         setError(null)
         try {
-            await api.post('/auth/reset-password/', { identifier, password: form.password })
+            const hashedPassword = await sha256(form.password)
+            await api.post('/auth/reset-password/', { identifier, password: hashedPassword })
             setStep(4)
         } catch (err) {
             setLoadingMessage(null)

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
+import { sha256 } from '../../utils/crypto'
 import { setCredentials } from '../../store/slices/authSlice'
 import { setCookie, REMEMBER_ME_DAYS, setSessionCookie } from '../../utils/cookies'
 import api from '../../services/api'
@@ -34,7 +35,9 @@ const Login = () => {
         setLoading(true)
         setError(null)
         try {
-            const res = await api.post('/auth/login/', { identifier: form.identifier, password: form.password })
+            const hashedPassword = await sha256(form.password)
+const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword })
+
             setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
             dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
             const userRole = res.data.user.role

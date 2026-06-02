@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.hashers import make_password, check_password
 from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user
 from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified, mark_registration_verified, mark_registration_completed
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
@@ -41,10 +40,12 @@ class RegisterView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        import hashlib
+        double_hash = hashlib.sha256(data['password'].encode()).hexdigest()
         store_pending_registration(data['mobileNumber'], {
             'mobileNumber': data['mobileNumber'],
             'email': data['email'],
-            'passwordHash': make_password(data['password']),
+            'passwordHash': double_hash,
             'role': data['role'],
             'isPending': data['role'] == 'extension_worker',
         })
@@ -120,7 +121,9 @@ class LoginView(APIView):
         if not user.get('isActive'):
             return Response({'error': 'Account is disabled'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if not check_password(password, user['passwordHash']):
+        import hashlib
+        double_hash = hashlib.sha256(password.encode()).hexdigest()
+        if double_hash != user['passwordHash']:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if user.get('isPending'):
@@ -139,7 +142,6 @@ class LoginView(APIView):
                 'mobileNumber': user['mobileNumber'],
             }
         })
-
 
 class ForgotPasswordView(APIView):
     permission_classes = [AllowAny]
@@ -183,11 +185,12 @@ class ResetPasswordView(APIView):
             return Response({'error': 'OTP not verified. Please verify OTP first.'}, status=status.HTTP_400_BAD_REQUEST)
         clear_otp_verified(user['mobileNumber'])
 
+        import hashlib
+        double_hash = hashlib.sha256(password.encode()).hexdigest()
         update_user(user['id'], {
-            'passwordHash': make_password(password),
+            'passwordHash': double_hash,
             'isResetPass': False,
         })
-
         return Response({'message': 'Password reset successfully'})
      
 class CheckUsernameView(APIView):

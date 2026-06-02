@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { sha256 } from '../../utils/crypto'
 import { MdClose, MdLock, MdLogout, MdDashboard, MdViewSidebar } from 'react-icons/md'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import { clearCredentials } from '../../store/slices/authSlice'
+import { setAppLoading } from '../../store/slices/appSlice'
 import { deleteCookie } from '../../utils/cookies'
 import useLayout from '../../hooks/useLayout'
 import Confirmation from '../ui/Confirmation'
@@ -26,9 +28,12 @@ const ProfilePanel = ({ isOpen, onClose }) => {
     const [success, setSuccess] = useState(null)
 
     const handleLogout = () => {
-        dispatch(clearCredentials())
-        deleteCookie('token')
-        navigate('/')
+        dispatch(setAppLoading(true))
+        setTimeout(() => {
+            dispatch(clearCredentials())
+            deleteCookie('token')
+            navigate('/')
+        }, 100)
     }
 
     const handleChangePassword = async () => {
@@ -62,7 +67,8 @@ const ProfilePanel = ({ isOpen, onClose }) => {
         setLoading(true)
         setError(null)
         try {
-            await api.post('/auth/reset-password/', { identifier: user?.mobileNumber || user?.username, password: newPassword })
+            const hashedPassword = await sha256(newPassword)
+            await api.post('/auth/reset-password/', { identifier: user?.mobileNumber || user?.username, password: hashedPassword })
             setSuccess('Password changed successfully!')
             setChangePassStep(null)
             setOtp('')

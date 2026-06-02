@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.hashers import make_password
+import hashlib
 from accounts.firebase_service import get_user_by_username, create_user
 
 class Command(BaseCommand):
@@ -24,7 +24,7 @@ class Command(BaseCommand):
             'barangay': '',
             'username': username,
             'mobileNumber': options['mobile'],
-            'passwordHash': make_password(options['password']),
+            'passwordHash': hashlib.sha256(options['password'].encode()).hexdigest(),
             'role': 'admin',
             'isPending': False,
         })

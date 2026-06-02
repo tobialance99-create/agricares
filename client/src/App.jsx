@@ -3,9 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { setAppLoading } from './store/slices/appSlice'
 import { setTheme } from './store/slices/themeSlice'
-import { setSessionExpired } from './store/slices/appSlice'
-import { clearCredentials } from './store/slices/authSlice'
-import { deleteCookie } from './utils/cookies'
+import SessionExpiredDialog from './components/ui/SessionExpiredDialog'
 
 import api from './services/api'
 import PageLoader from './components/ui/PageLoader'
@@ -38,8 +36,6 @@ import SystemControl from './pages/system/panel/SystemControl'
 function App() {
   const theme = useSelector((state) => state.theme)
   const audioRef = useRef(null)
-  const sessionExpired = useSelector((state) => state.app.sessionExpired)
-  const { user } = useSelector((state) => state.auth)
 
 
   useEffect(() => {
@@ -153,30 +149,9 @@ function App() {
             <Route path='/system/panel/endpoints' element={<Endpoints />} />
             <Route path='/system/panel/control' element={<SystemControl />} />
           </Routes>
+          <SessionExpiredDialog />
         </BrowserRouter>
       </div>
-      {/* Session Expired Dialog */}
-      {sessionExpired && (
-        <div className='fixed inset-0 z-[200] flex items-center justify-center' style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className='rounded-xl p-8 shadow-2xl text-center flex flex-col gap-4 mx-4' style={{ backgroundColor: theme.backgroundColor, maxWidth: '360px', width: '100%' }}>
-            <span className='text-4xl'>⏰</span>
-            <h2 className='text-lg font-bold' style={{ color: theme.textColor }}>Session Expired</h2>
-            <p className='text-sm opacity-60' style={{ color: theme.textColor }}>Your session has expired. Please login again to continue.</p>
-            <button
-              className='w-full py-2.5 rounded-lg font-medium text-sm text-white cursor-pointer'
-              style={{ backgroundColor: theme.primaryColor, borderRadius: theme.borderRadius }}
-              onClick={() => {
-                dispatch(setSessionExpired(false))
-                dispatch(clearCredentials())
-                deleteCookie('token')
-                window.location.href = '/'
-              }}
-            >
-              Login Again
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
