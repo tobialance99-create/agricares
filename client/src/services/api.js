@@ -17,9 +17,8 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            const state = store.getState()
-            const user = state.auth.user
-            if (user) {
+            const token = getCookie('token')
+            if (token) {
                 store.dispatch(setSessionExpired(true))
             } else {
                 store.dispatch(setUnauthorized(true))
