@@ -273,3 +273,17 @@ class CheckPendingView(APIView):
         if not user_data.get('isVerified'):
             return Response({'status': 'pending'})
         return Response({'status': 'none'})
+
+class MeView(APIView):
+    def get(self, request):
+        user = request.user
+        user_data = get_user_by_id(user.id)
+        if not user_data:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({
+            'id': user_data['id'],
+            'firstName': user_data['firstName'],
+            'lastName': user_data['lastName'],
+            'role': user_data['role'],
+            'mobileNumber': user_data['mobileNumber'],
+        })

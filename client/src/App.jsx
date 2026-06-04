@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { setAppLoading } from './store/slices/appSlice'
 import { setTheme } from './store/slices/themeSlice'
+import { setCredentials } from './store/slices/authSlice'
+import { getCookie } from './utils/cookies'
 import SessionExpiredDialog from './components/ui/SessionExpiredDialog'
 
 import api from './services/api'
@@ -72,6 +74,13 @@ function App() {
   const [themeLoaded, setThemeLoaded] = useState(false)
 
   useEffect(() => {
+    const token = getCookie('token')
+    if (token) {
+      api.get('/auth/me/').then(res => {
+        dispatch(setCredentials({ user: res.data, token }))
+      }).catch(() => { })
+    }
+
     api.get('/theme/').then(res => {
       dispatch(setTheme(res.data))
       setThemeLoaded(true)
@@ -96,6 +105,7 @@ function App() {
     ws.onerror = () => ws.close()
     return () => ws.close()
   }, [dispatch])
+
 
 
 
