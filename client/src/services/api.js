@@ -17,6 +17,10 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            const url = error.config?.url || ''
+            if (url.includes('/auth/login/') || url.includes('/auth/forgot-password/') || url.includes('/system/login/')) {
+                return Promise.reject(error)
+            }
             const token = getCookie('token')
             if (token) {
                 store.dispatch(setSessionExpired(true))
