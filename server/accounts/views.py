@@ -3,14 +3,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import timedelta
 from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user, get_user_by_id
 from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified, mark_registration_verified, mark_registration_completed
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
 
-def get_tokens(user_id, role):
+def get_tokens(user_id, role, remember_me=False):
     refresh = RefreshToken()
     refresh['user_id'] = user_id
     refresh['role'] = role
+    if remember_me:
+        refresh.access_token.set_exp(lifetime=timedelta(days=7))
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
@@ -106,7 +109,6 @@ class LoginView(APIView):
 
         identifier = serializer.validated_data['identifier']
         password = serializer.validated_data['password']
-
         user = get_user_by_identifier(identifier)
 
         if not user:
@@ -129,7 +131,7 @@ class LoginView(APIView):
         if user.get('isPending'):
             return Response({'error': 'Account is pending approval', 'isPending': True}, status=status.HTTP_403_FORBIDDEN)
 
-        tokens = get_tokens(user['id'], user['role'])
+        tokens = get_tokens(user['id'], user['role'], remember_me=serializer.validated_data.get('rememberMe', False))
 
         return Response({
             'access': tokens['access'],

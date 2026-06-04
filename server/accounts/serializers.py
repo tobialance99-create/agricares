@@ -9,6 +9,7 @@ class RegisterSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     identifier = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    rememberMe = serializers.BooleanField(required=False, default=False)
 
 class SendOTPSerializer(serializers.Serializer):
     mobileNumber = serializers.CharField()

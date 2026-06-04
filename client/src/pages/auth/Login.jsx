@@ -36,8 +36,7 @@ const Login = () => {
         setError(null)
         try {
             const hashedPassword = await sha256(form.password)
-const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword })
-
+            const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword, rememberMe: form.rememberMe })
             setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
             dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
             const userRole = res.data.user.role
