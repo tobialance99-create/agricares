@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import { setAppLoading, setUnauthorized } from './store/slices/appSlice'
+import { setAppLoading } from './store/slices/appSlice'
 import { setTheme } from './store/slices/themeSlice'
 import { setCredentials } from './store/slices/authSlice'
 import { getCookie } from './utils/cookies'
@@ -34,6 +34,22 @@ import Init from './pages/system/init'
 import Overview from './pages/system/panel/Overview'
 import Endpoints from './pages/system/panel/Endpoints'
 import SystemControl from './pages/system/panel/SystemControl'
+
+const protectedPaths = ['/dashboard', '/admin', '/farmer', '/extension-worker', '/notifications']
+
+function RouteGuard() {
+  const location = useLocation()
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    const token = getCookie('token')
+    if (!token && protectedPaths.some(p => location.pathname.startsWith(p))) {
+      dispatch(setUnauthorized(true))
+    }
+  }, [location.pathname, dispatch])
+
+  return null
+}
 
 function App() {
   const theme = useSelector((state) => state.theme)
@@ -79,12 +95,7 @@ function App() {
       api.get('/auth/me/').then(res => {
         dispatch(setCredentials({ user: res.data, token }))
       }).catch(() => { })
-    } else {
-      const protectedPaths = ['/dashboard', '/admin', '/farmer', '/extension-worker', '/notifications']
-      if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
-        dispatch(setUnauthorized(true))
-      }
-    }
+    } 
 
 
 
@@ -134,7 +145,7 @@ function App() {
       {isLoading && <PageLoader onDone={() => dispatch(setAppLoading(false))} />}
       <div style={{ visibility: isLoading ? 'hidden' : 'visible' }}>
         <BrowserRouter>
-
+          <RouteGuard />
           <Routes>
             {/* Public */}
             <Route path='/' element={<LandingPage />} />
