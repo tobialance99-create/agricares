@@ -9,17 +9,21 @@ from .otp_service import send_otp, verify_otp, store_pending_registration, get_p
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
 
 def get_tokens(user_id, role, remember_me=False):
+    from rest_framework_simplejwt.tokens import AccessToken
     from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    days = 7 if remember_me else 1
     refresh = RefreshToken()
     refresh['user_id'] = user_id
     refresh['role'] = role
-    now = datetime.now(timezone.utc)
-    days = 7 if remember_me else 1
-    refresh.access_token.payload['exp'] = int((now + timedelta(days=days)).timestamp())
-    refresh.access_token.payload['iat'] = int(now.timestamp())
+    access = AccessToken()
+    access['user_id'] = user_id
+    access['role'] = role
+    access.payload['exp'] = int((now + timedelta(days=days)).timestamp())
+    access.payload['iat'] = int(now.timestamp())
     return {
         'refresh': str(refresh),
-        'access': str(refresh.access_token),
+        'access': str(access),
     }
 
 
