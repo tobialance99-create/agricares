@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user
+from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user, get_user_by_id
 from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified, mark_registration_verified, mark_registration_completed
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
 
