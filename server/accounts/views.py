@@ -13,7 +13,8 @@ def get_tokens(user_id, role, remember_me=False):
     refresh['user_id'] = user_id
     refresh['role'] = role
     if remember_me:
-        refresh.access_token.set_exp(lifetime=timedelta(days=7))
+        from datetime import datetime, timezone
+        refresh.access_token['exp'] = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
