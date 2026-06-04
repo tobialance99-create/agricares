@@ -18,7 +18,7 @@ api.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             const url = error.config?.url || ''
-            if (url.includes('/auth/login/') || url.includes('/auth/forgot-password/') || url.includes('/system/login/')) {
+            if (url.includes('/auth/') || url.includes('/system/login/') || url.includes('/positions/')) {
                 return Promise.reject(error)
             }
             const token = getCookie('token')
