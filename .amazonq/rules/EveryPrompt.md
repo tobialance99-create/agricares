@@ -5,7 +5,7 @@ Read the file everytime related to the prompt.
 Confirm it to me and give me suggestions before proceeding and wait until i say go before giving me the code block.
 If Multiple files, don't give me all the code.
 Do it in a sequence form like "lets start this file first then continue to next file if done."
-Before proceeding make sure to clarify to me first what i said. so i would know if you understand it. And after applying the code and i said done.
+Before proceeding make sure to clarify to me first what i said. so i would know if you understand it. And after applying the code and i said "done".
 Check the files again to confirm that there are no errors.
 Dont decide for yourself if i miss your question. question it to me again.
 If you are giving me a code block, show me the before and after.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import { setAppLoading } from './store/slices/appSlice'
+import { setAppLoading, setUnauthorized } from './store/slices/appSlice'
 import { setTheme } from './store/slices/themeSlice'
 import { setCredentials } from './store/slices/authSlice'
 import { getCookie } from './utils/cookies'
@@ -79,7 +79,14 @@ function App() {
       api.get('/auth/me/').then(res => {
         dispatch(setCredentials({ user: res.data, token }))
       }).catch(() => { })
+    } else {
+      const protectedPaths = ['/dashboard', '/admin', '/farmer', '/extension-worker', '/notifications']
+      if (protectedPaths.some(p => window.location.pathname.startsWith(p))) {
+        dispatch(setUnauthorized(true))
+      }
     }
+
+
 
     api.get('/theme/').then(res => {
       dispatch(setTheme(res.data))
