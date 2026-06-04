@@ -43,13 +43,27 @@ Key Features:
 - Maintenance Mode: SuperAdmin can disable the entire system
 - Endpoint Control: SuperAdmin can disable individual API endpoints
 - Profile Panel: Slide-out panel from right (avatar click) with layout toggle, change password, logout
-- Session Expired: Blocking dialog on 401 Unauthorized with Login Again button
+- Session Expired: ⏰ shows when token cookie exists but 401, 🔒 Unauthorized shows when no token + protected route
 - Layout: Switchable between Topbar and Sidebar (saved in permanent cookie)
+- User Restore on Refresh: /auth/me/ endpoint restores user from token cookie on page load
+- RouteGuard: Checks token on every route change including browser back/forward
+- Remember Me: JWT token lifetime is 1 day (unchecked) or 7 days (checked) — controlled via AccessToken payload
+- PageLoader: Hides scrollbar while active
+- Minecraft Assets: Preloaded in index.html for faster rendering
 
 Local Development:
 - Frontend: npm run dev (port 5173)
-- Backend: python -m daphne -p 8000 core.asgi:application
+- Backend: python -m daphne -p 8000 core.asgi:application (requires venv with Python 3.11)
 - Redis: docker start redis
+- venv setup: py -3.11 -m venv venv → venv\Scripts\activate → pip install -r req_utf8.txt
+- cffi must be downgraded: pip install cffi==1.17.1
+
+Key Insights:
+- Auth endpoints (/auth/login/, /auth/forgot-password/, /system/login/) are excluded from session expired/unauthorized interceptor
+- get_tokens uses AccessToken directly with custom exp payload for Remember Me duration
+- requirements.txt is UTF-16 encoded (PowerShell saves as UTF-16) — Dockerfile converts it, locally use req_utf8.txt
+- grpcio must be upgraded after installing requirements: pip install grpcio --upgrade
+
 
 Production URLs:
 - Frontend: https://agricare.up.railway.app
