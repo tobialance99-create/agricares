@@ -10,11 +10,18 @@ const PageLoader = ({ onDone }) => {
     const [fading, setFading] = useState(false)
 
     useEffect(() => {
+        document.body.style.overflow = 'hidden'
         const timer = setTimeout(() => {
             setFading(true)
-            setTimeout(() => onDone?.(), 500)
+            setTimeout(() => {
+                document.body.style.overflow = ''
+                onDone?.()
+            }, 500)
         }, 2500)
-        return () => clearTimeout(timer)
+        return () => {
+            clearTimeout(timer)
+            document.body.style.overflow = ''
+        }
     }, [onDone])
 
     useEffect(() => {
