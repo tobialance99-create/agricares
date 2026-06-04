@@ -9,16 +9,19 @@ from .otp_service import send_otp, verify_otp, store_pending_registration, get_p
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
 
 def get_tokens(user_id, role, remember_me=False):
+    from datetime import datetime, timezone
     refresh = RefreshToken()
     refresh['user_id'] = user_id
     refresh['role'] = role
-    if remember_me:
-        from datetime import datetime, timezone
-        refresh.access_token['exp'] = int((datetime.now(timezone.utc) + timedelta(days=7)).timestamp())
+    now = datetime.now(timezone.utc)
+    days = 7 if remember_me else 1
+    refresh.access_token.payload['exp'] = int((now + timedelta(days=days)).timestamp())
+    refresh.access_token.payload['iat'] = int(now.timestamp())
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
