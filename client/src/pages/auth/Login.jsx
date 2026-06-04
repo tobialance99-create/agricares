@@ -131,7 +131,7 @@ const Login = () => {
                         <div className='flex items-center justify-between'>
                             <label className='flex items-center gap-2 text-sm cursor-pointer' style={{ color: theme.textColor }}>
                                 <input type='checkbox' name='rememberMe' checked={form.rememberMe} onChange={handleChange} />
-                                Remember Me
+                                Remember Me (7 days)
                             </label>
                             <Link to='/forgot-password' className='text-sm' style={{ color: theme.primaryColor }}>Forgot Password?</Link>
                         </div>
