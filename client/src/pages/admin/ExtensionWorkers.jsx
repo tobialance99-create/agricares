@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { MdSearch, MdVisibility, MdToggleOn, MdToggleOff, MdDelete, MdCheckCircle } from 'react-icons/md'
+import { MdSearch, MdVisibility, MdToggleOn, MdToggleOff, MdDelete, MdCheckCircle, MdSettings } from 'react-icons/md'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import AdminLayout from '../../components/layout/AdminLayout'
 import Dialog from '../../components/ui/Dialog'
 import Confirmation from '../../components/ui/Confirmation'
 import Button from '../../components/ui/Button'
+import SidePanel from '../../components/ui/SidePanel'
 import api from '../../services/api'
+
 
 const ExtensionWorkers = () => {
     const theme = useSelector((state) => state.theme)
@@ -21,8 +23,48 @@ const ExtensionWorkers = () => {
     const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null })
     const [toggleConfirm, setToggleConfirm] = useState({ open: false, id: null, isActive: false })
     const [approveConfirm, setApproveConfirm] = useState({ open: false, id: null })
+    const [positionsOpen, setPositionsOpen] = useState(false)
+    const [newPositionName, setNewPositionName] = useState('')
+    const [editPosition, setEditPosition] = useState(null)
+    const [positionLoading, setPositionLoading] = useState(false)
+    const [deletePositionConfirm, setDeletePositionConfirm] = useState({ open: false, id: null })
+
+
+    const fetchPositions = () => {
+        api.get('/positions/').then(res => setPositions(res.data))
+    }
+
+    const handleAddPosition = async () => {
+        if (!newPositionName.trim()) return
+        setPositionLoading(true)
+        await api.post('/positions/', { name: newPositionName.trim() })
+        setNewPositionName('')
+        fetchPositions()
+        setPositionLoading(false)
+    }
+
+    const handleEditPosition = async (id) => {
+        if (!editPosition.name.trim()) return
+        setPositionLoading(true)
+        await api.patch(`/positions/${id}/`, { name: editPosition.name })
+        setEditPosition(null)
+        fetchPositions()
+        setPositionLoading(false)
+    }
+
+    const handleTogglePosition = async (id, isActive) => {
+        await api.patch(`/positions/${id}/`, { isActive: !isActive })
+        fetchPositions()
+    }
+
+    const handleDeletePosition = async () => {
+        await api.delete(`/positions/${deletePositionConfirm.id}/`)
+        setDeletePositionConfirm({ open: false, id: null })
+        fetchPositions()
+    }
 
     const fetchWorkers = () => {
+
         setLoading(true)
         api.get('/users/extension-workers/').then(res => {
             setWorkers(res.data)
@@ -32,7 +74,7 @@ const ExtensionWorkers = () => {
 
     useEffect(() => {
         fetchWorkers()
-        api.get('/positions/').then(res => setPositions(res.data))
+        fetchPositions()
     }, [])
 
     const handleView = (worker) => {
@@ -78,7 +120,12 @@ const ExtensionWorkers = () => {
     return (
         <AdminLayout>
             <div className='flex flex-col gap-4'>
-                <h1 className='text-2xl font-bold' style={{ color: theme.textColor }}>Extension Workers</h1>
+                <div className='flex items-center justify-between'>
+                    <h1 className='text-2xl font-bold' style={{ color: theme.textColor }}>Extension Workers</h1>
+                    <Button variant='secondary' onClick={() => setPositionsOpen(true)}>
+                        <MdSettings size={16} className='inline mr-1' /> Manage Positions
+                    </Button>
+                </div>
 
                 {/* Search */}
                 <div className='relative'>
@@ -224,6 +271,60 @@ const ExtensionWorkers = () => {
                 message='This action cannot be undone. The extension worker account will be permanently deleted.'
                 onConfirm={handleDelete}
                 onCancel={() => setDeleteConfirm({ open: false, id: null })}
+                confirmText='Delete'
+            />
+            <SidePanel isOpen={positionsOpen} onClose={() => setPositionsOpen(false)} title='Manage Positions'>
+                {/* Add Position */}
+                <div className='flex gap-2'>
+                    <input value={newPositionName} onChange={e => setNewPositionName(e.target.value)}
+                        placeholder='New position name'
+                        className='flex-1 px-3 py-2 text-sm outline-none border'
+                        style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                    <Button onClick={handleAddPosition} loading={positionLoading} size='sm'>Add</Button>
+                </div>
+
+                {/* Positions List */}
+                {positions.length === 0 ? (
+                    <p className='text-sm opacity-50 text-center' style={{ color: theme.textColor }}>No positions yet</p>
+                ) : positions.map(p => (
+                    <div key={p.id} className='flex items-center gap-2 p-3 rounded-xl'
+                        style={{ border: `1px solid ${theme.secondaryColor}`, backgroundColor: theme.primaryColor + '08' }}>
+                        {editPosition?.id === p.id ? (
+                            <input value={editPosition.name} onChange={e => setEditPosition({ ...editPosition, name: e.target.value })}
+                                className='flex-1 px-2 py-1 text-sm outline-none border'
+                                style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                        ) : (
+                            <span className='flex-1 text-sm font-medium' style={{ color: theme.textColor }}>{p.name}</span>
+                        )}
+                        <span className='text-xs px-2 py-0.5 rounded-full'
+                            style={{ backgroundColor: p.isActive ? '#dcfce7' : '#fee2e2', color: p.isActive ? '#16a34a' : '#dc2626' }}>
+                            {p.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {editPosition?.id === p.id ? (
+                            <button onClick={() => handleEditPosition(p.id)} className='cursor-pointer' style={{ color: theme.primaryColor }}>
+                                <MdCheckCircle size={18} />
+                            </button>
+                        ) : (
+                            <button onClick={() => setEditPosition({ id: p.id, name: p.name })} className='cursor-pointer opacity-60 hover:opacity-100' style={{ color: theme.primaryColor }}>
+                                <MdSettings size={16} />
+                            </button>
+                        )}
+                        <button onClick={() => handleTogglePosition(p.id, p.isActive)} className='cursor-pointer'>
+                            {p.isActive ? <MdToggleOn size={22} color='#16a34a' /> : <MdToggleOff size={22} color='#dc2626' />}
+                        </button>
+                        <button onClick={() => setDeletePositionConfirm({ open: true, id: p.id })} className='cursor-pointer hover:opacity-70'>
+                            <MdDelete size={18} color={theme.dangerColor} />
+                        </button>
+                    </div>
+                ))}
+            </SidePanel>
+
+            <Confirmation
+                isOpen={deletePositionConfirm.open}
+                title='Delete Position?'
+                message='This action cannot be undone.'
+                onConfirm={handleDeletePosition}
+                onCancel={() => setDeletePositionConfirm({ open: false, id: null })}
                 confirmText='Delete'
             />
         </AdminLayout>
