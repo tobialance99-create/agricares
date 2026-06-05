@@ -37,8 +37,6 @@ const Login = () => {
         try {
             const hashedPassword = await sha256(form.password)
             const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword, rememberMe: form.rememberMe })
-            setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
-            dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
             const userRole = res.data.user.role
             if (userRole !== 'admin') {
                 if (role === 'farmer' && userRole === 'extension_worker') {
@@ -50,12 +48,21 @@ const Login = () => {
                     return
                 }
             }
+            setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
+            dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
             dispatch(setAppLoading(true))
             navigate('/dashboard')
+
         } catch (err) {
             setLoadingMessage(null)
             const msg = err.response?.data?.error
-            if (err.response?.data?.isPending) navigate('/pending-approval')
+            if (err.response?.data?.isPending) {
+                if (role === 'farmer') {
+                    setError('Please login as an Extension Worker.')
+                } else {
+                    navigate('/pending-approval')
+                }
+            }
             else if (err.response?.data?.isIncomplete) {
                 setSessionCookie('pendingMobile', err.response.data.mobileNumber)
                 navigate(`/register?role=${role}`)
@@ -95,13 +102,13 @@ const Login = () => {
                     <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
                         <div className='flex flex-col gap-1'>
                             <label className='text-sm font-medium' style={{ color: theme.textColor }}>
-                                {role === 'admin' ? 'Username' : 'Username or Mobile Number'}
+                                {role === 'admin' ? 'Username' : 'Username, Mobile Number, or Email'}
                             </label>
                             <input
                                 name='identifier'
                                 value={form.identifier}
                                 onChange={handleChange}
-                                placeholder={role === 'admin' ? 'Enter username' : 'Enter username or mobile number'}
+                                placeholder={role === 'admin' ? 'Enter username' : 'Enter username, mobile number, or email'}
                                 required
                                 className='w-full px-4 py-2.5 text-sm outline-none border'
                                 style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }}

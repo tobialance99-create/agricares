@@ -54,6 +54,8 @@ def get_user_by_identifier(identifier):
     user = get_user_by_username(identifier)
     if not user:
         user = get_user_by_mobile(identifier)
+    if not user:
+        user = get_user_by_email(identifier)
     return user
 
 def get_all_positions():
