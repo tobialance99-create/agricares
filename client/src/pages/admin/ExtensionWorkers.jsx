@@ -45,6 +45,11 @@ const ExtensionWorkers = () => {
 
     const handleEditPosition = async (id) => {
         if (!editPosition.name.trim()) return
+        const original = positions.find(p => p.id === id)
+        if (original && original.name === editPosition.name.trim()) {
+            setEditPosition(null)
+            return
+        }
         setPositionLoading(true)
         await api.patch(`/positions/${id}/`, { name: editPosition.name })
         setEditPosition(null)
@@ -287,34 +292,46 @@ const ExtensionWorkers = () => {
                 {positions.length === 0 ? (
                     <p className='text-sm opacity-50 text-center' style={{ color: theme.textColor }}>No positions yet</p>
                 ) : positions.map(p => (
-                    <div key={p.id} className='flex items-center gap-2 p-3 rounded-xl'
+                    <div key={p.id} className='flex flex-col gap-2 p-3 rounded-xl'
                         style={{ border: `1px solid ${theme.secondaryColor}`, backgroundColor: theme.primaryColor + '08' }}>
                         {editPosition?.id === p.id ? (
-                            <input value={editPosition.name} onChange={e => setEditPosition({ ...editPosition, name: e.target.value })}
-                                className='flex-1 px-2 py-1 text-sm outline-none border'
-                                style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                            <>
+                                <input value={editPosition.name} onChange={e => setEditPosition({ ...editPosition, name: e.target.value })}
+                                    className='w-full px-2 py-1 text-sm outline-none border'
+                                    style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
+                                <div className='flex items-center justify-between'>
+                                    <span className='text-xs px-2 py-0.5 rounded-full'
+                                        style={{ backgroundColor: p.isActive ? '#dcfce7' : '#fee2e2', color: p.isActive ? '#16a34a' : '#dc2626' }}>
+                                        {p.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                    <div className='flex items-center gap-2'>
+                                        <button onClick={() => { setEditPosition(null) }} className='cursor-pointer opacity-60' style={{ color: theme.textColor }}>
+                                            <MdDelete size={16} color={theme.dangerColor} />
+                                        </button>
+                                        <button onClick={() => handleEditPosition(p.id)} className='cursor-pointer' style={{ color: theme.primaryColor }}>
+                                            <MdCheckCircle size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
                         ) : (
-                            <span className='flex-1 text-sm font-medium' style={{ color: theme.textColor }}>{p.name}</span>
+                            <div className='flex items-center gap-2'>
+                                <span className='flex-1 text-sm font-medium' style={{ color: theme.textColor }}>{p.name}</span>
+                                <span className='text-xs px-2 py-0.5 rounded-full'
+                                    style={{ backgroundColor: p.isActive ? '#dcfce7' : '#fee2e2', color: p.isActive ? '#16a34a' : '#dc2626' }}>
+                                    {p.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                                <button onClick={() => setEditPosition({ id: p.id, name: p.name })} className='cursor-pointer opacity-60 hover:opacity-100' style={{ color: theme.primaryColor }}>
+                                    <MdSettings size={16} />
+                                </button>
+                                <button onClick={() => handleTogglePosition(p.id, p.isActive)} className='cursor-pointer'>
+                                    {p.isActive ? <MdToggleOn size={22} color='#16a34a' /> : <MdToggleOff size={22} color='#dc2626' />}
+                                </button>
+                                <button onClick={() => setDeletePositionConfirm({ open: true, id: p.id })} className='cursor-pointer hover:opacity-70'>
+                                    <MdDelete size={18} color={theme.dangerColor} />
+                                </button>
+                            </div>
                         )}
-                        <span className='text-xs px-2 py-0.5 rounded-full'
-                            style={{ backgroundColor: p.isActive ? '#dcfce7' : '#fee2e2', color: p.isActive ? '#16a34a' : '#dc2626' }}>
-                            {p.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        {editPosition?.id === p.id ? (
-                            <button onClick={() => handleEditPosition(p.id)} className='cursor-pointer' style={{ color: theme.primaryColor }}>
-                                <MdCheckCircle size={18} />
-                            </button>
-                        ) : (
-                            <button onClick={() => setEditPosition({ id: p.id, name: p.name })} className='cursor-pointer opacity-60 hover:opacity-100' style={{ color: theme.primaryColor }}>
-                                <MdSettings size={16} />
-                            </button>
-                        )}
-                        <button onClick={() => handleTogglePosition(p.id, p.isActive)} className='cursor-pointer'>
-                            {p.isActive ? <MdToggleOn size={22} color='#16a34a' /> : <MdToggleOff size={22} color='#dc2626' />}
-                        </button>
-                        <button onClick={() => setDeletePositionConfirm({ open: true, id: p.id })} className='cursor-pointer hover:opacity-70'>
-                            <MdDelete size={18} color={theme.dangerColor} />
-                        </button>
                     </div>
                 ))}
             </SidePanel>
