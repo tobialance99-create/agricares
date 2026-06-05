@@ -111,8 +111,25 @@ def store_pending_registration(mobile_number, data):
             'data': json.dumps(data),
             'expiresAt': datetime.now(timezone.utc) + timedelta(seconds=OTP_EXPIRY)
         })
-
-def get_pending_registration(mobile_number):
+        
+def get_pending_registration(mobile_number=None, email=None):
+    if email and not mobile_number:
+        if _redis_available():
+            for key in redis_client.scan_iter('pending_reg:*'):
+                data = redis_client.get(key)
+                if data:
+                    parsed = json.loads(data)
+                    if parsed.get('email') == email:
+                        return parsed
+            return None
+        else:
+            docs = db.collection(PENDING_REG_COLLECTION).get()
+            for doc in docs:
+                data = doc.to_dict()
+                parsed = json.loads(data['data'])
+                if parsed.get('email') == email:
+                    return parsed
+            return None
     if _redis_available():
         data = redis_client.get(f'pending_reg:{mobile_number}')
         return json.loads(data) if data else None
@@ -126,6 +143,7 @@ def get_pending_registration(mobile_number):
             db.collection(PENDING_REG_COLLECTION).document(mobile_number).delete()
             return None
         return parsed
+
 
 def clear_pending_registration(mobile_number):
     if _redis_available():

@@ -121,13 +121,12 @@ class LoginView(APIView):
 
         if not user:
             pending = get_pending_registration(identifier)
-            if not pending and identifier.startswith('0'):
-                pending = get_pending_registration(identifier)
+            if not pending and '@' in identifier:
+                pending = get_pending_registration(email=identifier)
             if pending and pending.get('isVerified') and not pending.get('isCompleted'):
                 return Response({'error': 'Registration not completed', 'isIncomplete': True, 'mobileNumber': pending.get('mobileNumber')}, status=status.HTTP_403_FORBIDDEN)
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
-
+        
         if not user.get('isActive'):
             return Response({'error': 'Account is disabled'}, status=status.HTTP_401_UNAUTHORIZED)
 
