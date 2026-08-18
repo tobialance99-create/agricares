@@ -139,3 +139,5 @@ Werkzeug==3.1.8
 zope.interface==8.5
 
 resend==2.10.0
+
+supabase==2.15.2
