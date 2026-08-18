@@ -2,10 +2,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY client/package*.json .
+COPY package*.json .
 RUN npm install
 
-COPY client/ .
+COPY . .
 
 ARG VITE_API_URL
 ARG VITE_WS_URL
