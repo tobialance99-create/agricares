@@ -2,7 +2,174 @@ from core.firebase import db
 from datetime import datetime, timezone, timedelta
 
 TICKETS_COLLECTION = 'tickets'
+MESSAGES_SUBCOLLECTION = 'messages'
 ANALYTICS_COLLECTION = 'analytics'
+
+STOPWORDS = {
+    'a', 'an', 'the', 'is', 'it', 'in', 'on', 'at', 'to', 'for', 'of', 'and',
+    'or', 'but', 'my', 'me', 'i', 'we', 'our', 'your', 'their', 'this', 'that',
+    'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do',
+    'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can',
+    'with', 'from', 'by', 'about', 'as', 'into', 'through', 'during', 'how',
+    'what', 'when', 'where', 'why', 'which', 'who', 'not', 'no', 'so', 'if',
+    'its', 'also', 'just', 'very', 'too', 'some', 'any', 'all', 'there', 'then'
+}
+
+def extract_keywords(text):
+    words = text.lower().split()
+    keywords = []
+    for word in words:
+        cleaned = ''.join(c for c in word if c.isalpha())
+        if cleaned and cleaned not in STOPWORDS:
+            keywords.append(cleaned)
+    return list(set(keywords))
+
+def find_matching_ticket(extension_worker_id, keywords):
+    docs = db.collection(TICKETS_COLLECTION)\
+        .where('extensionWorkerId', '==', extension_worker_id).get()
+    best_match = None
+    best_score = 0
+    for doc in docs:
+        data = doc.to_dict()
+        if data.get('status') not in ['pending', 'ongoing', 'resolved']:
+            continue
+        stored = data.get('keywords', [])
+        existing_keywords = set(stored) if stored else set(extract_keywords(data.get('concern', '')))
+        incoming_keywords = set(keywords)
+        overlap = len(existing_keywords & incoming_keywords)
+        if overlap > 0 and overlap > best_score:
+            best_score = overlap
+            best_match = {'id': doc.id, **data}
+    return best_match
+
+def create_ticket(data):
+    doc_ref = db.collection(TICKETS_COLLECTION).document()
+    doc_ref.set({
+        'extensionWorkerId': data['extensionWorkerId'],
+        'extensionWorkerName': data['extensionWorkerName'],
+        'concern': data['concern'],
+        'keywords': data['keywords'],
+        'status': 'pending',
+        'participants': [data['farmerId']],
+        'date': datetime.utcnow().isoformat(),
+    })
+    add_message(doc_ref.id, {
+        'senderId': data['farmerId'],
+        'senderName': data['farmerName'],
+        'senderRole': 'farmer',
+        'message': data['concern'],
+        'fileData': data.get('fileData', ''),
+        'fileName': data.get('fileName', ''),
+        'fileType': data.get('fileType', ''),
+    })
+    return doc_ref.id
+
+def join_ticket(ticket_id, farmer_id, farmer_name, concern):
+    ticket_ref = db.collection(TICKETS_COLLECTION).document(ticket_id)
+    ticket = ticket_ref.get()
+    if not ticket.exists:
+        return
+    participants = ticket.to_dict().get('participants', [])
+    if farmer_id not in participants:
+        participants.append(farmer_id)
+        ticket_ref.update({'participants': participants})
+    add_message(ticket_id, {
+        'senderId': farmer_id,
+        'senderName': farmer_name,
+        'senderRole': 'farmer',
+        'message': concern,
+    })
+
+def add_message(ticket_id, data):
+    doc_ref = db.collection(TICKETS_COLLECTION).document(ticket_id)\
+        .collection(MESSAGES_SUBCOLLECTION).document()
+    doc_ref.set({
+        'senderId': data['senderId'],
+        'senderName': data['senderName'],
+        'senderRole': data['senderRole'],
+        'message': data.get('message', ''),
+        'fileData': data.get('fileData', ''),
+        'fileName': data.get('fileName', ''),
+        'fileType': data.get('fileType', ''),
+        'isPinned': False,
+        'date': datetime.utcnow().isoformat(),
+    })
+    return doc_ref.id
+
+def pin_message(ticket_id, message_id):
+    ticket_ref = db.collection(TICKETS_COLLECTION).document(ticket_id)
+    messages = ticket_ref.collection(MESSAGES_SUBCOLLECTION).get()
+    for msg in messages:
+        msg.reference.update({'isPinned': msg.id == message_id})
+    ticket_ref.update({'pinnedMessageId': message_id})
+
+def delete_message(ticket_id, message_id):
+    db.collection(TICKETS_COLLECTION).document(ticket_id)\
+        .collection(MESSAGES_SUBCOLLECTION).document(message_id).delete()
+
+def delete_ticket(ticket_id):
+    ticket_ref = db.collection(TICKETS_COLLECTION).document(ticket_id)
+    messages = ticket_ref.collection(MESSAGES_SUBCOLLECTION).get()
+    for msg in messages:
+        msg.reference.delete()
+    ticket_ref.delete()
+
+def update_ticket_status(ticket_id, new_status):
+    db.collection(TICKETS_COLLECTION).document(ticket_id).update({'status': new_status})
+
+def get_all_tickets():
+    docs = db.collection(TICKETS_COLLECTION).order_by('date', direction='DESCENDING').get()
+    return [{'id': doc.id, **doc.to_dict()} for doc in docs]
+
+def get_available_ticket_years():
+    docs = db.collection(TICKETS_COLLECTION).get()
+    years = set()
+    for doc in docs:
+        date_str = doc.to_dict().get('date')
+        if date_str:
+            years.add(datetime.fromisoformat(date_str).year)
+    return sorted(years, reverse=True) or [datetime.now(timezone.utc).year]
+
+def get_all_tickets_filtered(week_start_date):
+    monday = datetime(
+        week_start_date.year, week_start_date.month, week_start_date.day,
+        tzinfo=timezone.utc
+    )
+    sunday = monday + timedelta(days=7)
+    docs = db.collection(TICKETS_COLLECTION).get()
+    tickets = []
+    for doc in docs:
+        data = doc.to_dict()
+        date_str = data.get('date')
+        if not date_str:
+            continue
+        date = datetime.fromisoformat(date_str).replace(tzinfo=timezone.utc)
+        if monday <= date < sunday:
+            tickets.append({'id': doc.id, **data})
+    return (
+        sorted(tickets, key=lambda t: t.get('date', ''), reverse=True),
+        monday.strftime('%b %d'),
+        (monday + timedelta(days=6)).strftime('%b %d, %Y'),
+        monday.month,
+        monday.year,
+    )
+
+def get_tickets_by_worker(worker_id):
+    docs = db.collection(TICKETS_COLLECTION)\
+        .where('extensionWorkerId', '==', worker_id).get()
+    tickets = [{'id': doc.id, **doc.to_dict()} for doc in docs]
+    return sorted(tickets, key=lambda t: t.get('date', ''), reverse=True)
+
+def get_ticket_by_id(ticket_id):
+    doc = db.collection(TICKETS_COLLECTION).document(ticket_id).get()
+    if doc.exists:
+        return {'id': doc.id, **doc.to_dict()}
+    return None
+
+def get_ticket_messages(ticket_id):
+    docs = db.collection(TICKETS_COLLECTION).document(ticket_id)\
+        .collection(MESSAGES_SUBCOLLECTION).order_by('date').get()
+    return [{'id': doc.id, **doc.to_dict()} for doc in docs]
 
 def get_ticket_counts():
     now = datetime.now(timezone.utc)
@@ -11,7 +178,7 @@ def get_ticket_counts():
     month_start = today_start - timedelta(days=30)
 
     tickets = db.collection(TICKETS_COLLECTION).get()
-    
+
     today_count = 0
     weekly_count = 0
     monthly_count = 0
@@ -45,7 +212,15 @@ def get_knowledge_repository_visits():
 def increment_knowledge_repository_visits():
     ref = db.collection(ANALYTICS_COLLECTION).document('knowledge_repository')
     doc = ref.get()
+    now = datetime.now(timezone.utc)
+    month_key = now.strftime('%b %Y')
+    day_key = now.strftime('%Y-%m-%d')
     if doc.exists:
-        ref.update({'visits': doc.to_dict().get('visits', 0) + 1})
+        data = doc.to_dict()
+        monthly = data.get('monthly_visits', {})
+        monthly[month_key] = monthly.get(month_key, 0) + 1
+        daily = data.get('daily_visits', {})
+        daily[day_key] = daily.get(day_key, 0) + 1
+        ref.update({'visits': data.get('visits', 0) + 1, 'monthly_visits': monthly, 'daily_visits': daily})
     else:
-        ref.set({'visits': 1})
+        ref.set({'visits': 1, 'monthly_visits': {month_key: 1}, 'daily_visits': {day_key: 1}})

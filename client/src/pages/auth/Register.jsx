@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { sha256 } from '../../utils/crypto'
 import api from '../../services/api'
+import supabase from '../../services/supabase'
 import { FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import Dialog from '../../components/ui/Dialog'
@@ -85,6 +86,7 @@ const Register = () => {
         return () => clearTimeout(timer)
     }, [personalForm.username])
 
+    // Email debounce check
     useEffect(() => {
         if (!form.email) return setEmailStatus(null)
         setEmailStatus('checking')
@@ -105,15 +107,17 @@ const Register = () => {
         setPersonalForm(prev => ({ ...prev, [name]: value }))
     }
 
+    const useSupabaseAuth = theme?.useSupabaseAuth ?? false
+
     const handleStep1 = async (e) => {
         e.preventDefault()
         const missing = []
         if (!form.mobileNumber) missing.push('Mobile Number')
         if (!form.email) missing.push('Email')
-        if (emailStatus === 'taken') missing.push('Email is already registered')
         if (!form.password) missing.push('Password')
         if (!form.confirmPassword) missing.push('Confirm Password')
         if (mobileStatus === 'taken') missing.push('Mobile number is already registered')
+        if (emailStatus === 'taken') missing.push('Email is already registered')
         if (!allReqsMet) missing.push('Password does not meet all requirements')
         if (form.password !== form.confirmPassword) missing.push('Passwords do not match')
         if (missing.length > 0) return setDialog({ open: true, type: 'error', messages: missing })
@@ -123,12 +127,31 @@ const Register = () => {
         setError(null)
         try {
             const hashedPassword = await sha256(form.password)
-            await api.post('/auth/register/', {
-                mobileNumber: form.mobileNumber,
-                email: form.email,
-                password: hashedPassword,
-                role: role === 'farmer' ? 'farmer' : 'extension_worker',
-            })
+            if (useSupabaseAuth) {
+                try {
+                    await api.post('/auth/supabase/register/', {
+                        mobileNumber: form.mobileNumber,
+                        email: form.email,
+                        password: form.password,
+                        role: role === 'farmer' ? 'farmer' : 'extension_worker',
+                    })
+                } catch {
+                    // Fallback to custom
+                    await api.post('/auth/register/', {
+                        mobileNumber: form.mobileNumber,
+                        email: form.email,
+                        password: hashedPassword,
+                        role: role === 'farmer' ? 'farmer' : 'extension_worker',
+                    })
+                }
+            } else {
+                await api.post('/auth/register/', {
+                    mobileNumber: form.mobileNumber,
+                    email: form.email,
+                    password: hashedPassword,
+                    role: role === 'farmer' ? 'farmer' : 'extension_worker',
+                })
+            }
             setLoadingMessage(null)
             setSessionCookie('pendingMobile', form.mobileNumber)
             setCountdown(3)
@@ -158,7 +181,15 @@ const Register = () => {
         setLoading(true)
         setError(null)
         try {
-            await api.post('/auth/verify-otp/', { mobileNumber: form.mobileNumber, otp, isRegistration: true })
+            if (useSupabaseAuth) {
+                try {
+                    await api.post('/auth/supabase/verify-otp/', { email: form.email, otp, mobileNumber: form.mobileNumber, isRegistration: true })
+                } catch {
+                    await api.post('/auth/verify-otp/', { mobileNumber: form.mobileNumber, otp, isRegistration: true })
+                }
+            } else {
+                await api.post('/auth/verify-otp/', { mobileNumber: form.mobileNumber, otp, isRegistration: true })
+            }
             setLoadingMessage(null)
             setStep(3)
         } catch (err) {
@@ -331,7 +362,7 @@ const Register = () => {
                                 </p>
                                 <div className='flex flex-col gap-1'>
                                     <label className='text-sm font-medium' style={{ color: theme.textColor }}>Enter OTP</label>
-                                    <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder='Enter OTP' maxLength={6}
+                                    <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder='Enter OTP' maxLength={8}
                                         className='w-full px-4 py-2.5 text-sm outline-none border text-center tracking-widest'
                                         style={{ borderRadius: theme.borderRadius, borderColor: theme.secondaryColor, backgroundColor: '#fff', color: theme.textColor }} />
                                 </div>

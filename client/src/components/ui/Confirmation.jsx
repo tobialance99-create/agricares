@@ -7,7 +7,7 @@ const Confirmation = ({ isOpen, title, message, icon: Icon, onConfirm, onCancel,
     if (!isOpen) return null
 
     return (
-        <div className='fixed inset-0 z-50 flex items-center justify-center' style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className='fixed inset-0 z-[75] flex items-center justify-center' style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className='w-[90%] max-w-[400px] shadow-lg p-6' style={{ backgroundColor: theme.backgroundColor, borderRadius: theme.borderRadius }}>
                 <div className='flex flex-col items-center text-center gap-3'>
                     {Icon && <Icon size={40} color={theme.dangerColor} />}

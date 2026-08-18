@@ -3,6 +3,9 @@ import redis
 import os
 import requests
 import json
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime, timezone, timedelta
 from core.firebase import db
 
@@ -62,8 +65,6 @@ def send_otp(mobile_number, email=None):
 
     if email:
         try:
-            from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import Mail
             html_message = f"""
                 <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background-color: #fff9e9; border-radius: 12px;">
                     <div style="text-align: center; margin-bottom: 24px;">
@@ -85,20 +86,62 @@ def send_otp(mobile_number, email=None):
                     </p>
                 </div>
             """
-            message = Mail(
-                from_email=os.getenv('SENDGRID_FROM_EMAIL'),
-                to_emails=email,
-                subject='AgriCare OTP Verification',
-                html_content=html_message
-            )
-            sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
-            response = sg.send(message)
-            print(f'[SendGrid] Status: {response.status_code}')
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = 'AgriCare OTP Verification'
+            msg['From'] = f'AgriCare <{os.getenv("GMAIL_USER")}>'
+            msg['To'] = email
+            msg.attach(MIMEText(html_message, 'html'))
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(os.getenv('GMAIL_USER'), os.getenv('GMAIL_APP_PASSWORD'))
+                server.sendmail(os.getenv('GMAIL_USER'), email, msg.as_string())
+            print(f'[Gmail] OTP sent to {email}')
             return True
         except Exception as e:
-            print(f'[SendGrid Error] {str(e)}')
+            print(f'[Gmail Error] {str(e)}')
             raise Exception(f'Failed to send OTP email: {str(e)}')
     return True
+
+
+def send_approval_email(email, first_name):
+    if os.getenv('DEBUG', 'True') == 'True':
+        print(f'[DEV] Approval email for {email}: Account approved')
+        return True
+    try:
+        html_message = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background-color: #fff9e9; border-radius: 12px;">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="color: #204a0e; font-size: 28px; margin: 0;">
+                        Agri<span style="color: #478347;">Care</span>
+                    </h1>
+                    <p style="color: #478347; font-size: 14px; margin: 4px 0 0;">Smart Farming Support System</p>
+                </div>
+                <div style="background-color: #fff; border-radius: 8px; padding: 24px; border: 1px solid #87b787;">
+                    <p style="color: #204a0e; font-size: 15px; margin: 0 0 16px;">Hello, {first_name}!</p>
+                    <p style="color: #204a0e; font-size: 15px; margin: 0 0 24px;">Your extension worker account has been <strong>approved</strong>. You can now log in to AgriCare and start handling tickets.</p>
+                    <div style="text-align: center; background-color: #d4eed1; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                        <span style="font-size: 32px;">✅</span>
+                        <p style="color: #204a0e; font-weight: bold; margin: 8px 0 0;">Account Approved</p>
+                    </div>
+                    <p style="color: #478347; font-size: 13px; margin: 0; text-align: center;">Welcome to the AgriCare team!</p>
+                </div>
+                <p style="color: #87b787; font-size: 12px; text-align: center; margin-top: 24px;">
+                    If you did not register for this account, please ignore this email.
+                </p>
+            </div>
+        """
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'AgriCare — Your Account Has Been Approved'
+        msg['From'] = f'AgriCare <{os.getenv("GMAIL_USER")}>'
+        msg['To'] = email
+        msg.attach(MIMEText(html_message, 'html'))
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(os.getenv('GMAIL_USER'), os.getenv('GMAIL_APP_PASSWORD'))
+            server.sendmail(os.getenv('GMAIL_USER'), email, msg.as_string())
+        print(f'[Gmail] Approval email sent to {email}')
+        return True
+    except Exception as e:
+        print(f'[Gmail Error] {str(e)}')
+        return False
 
 
 def store_pending_registration(mobile_number, data):

@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import timedelta
-from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user, get_user_by_id
+from .firebase_service import get_user_by_username, get_user_by_mobile, get_user_by_identifier, get_user_by_email, create_user, update_user, get_user_by_id, get_all_admins, create_notification, notify_admins_ws, broadcast_admin_update, get_position_by_id
 from .otp_service import send_otp, verify_otp, store_pending_registration, get_pending_registration, clear_pending_registration, mark_otp_verified, is_otp_verified, clear_otp_verified, mark_registration_verified, mark_registration_completed
 from .serializers import RegisterSerializer, LoginSerializer, SendOTPSerializer, VerifyOTPSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, CompleteRegistrationSerializer
 
@@ -140,6 +140,11 @@ class LoginView(APIView):
 
         tokens = get_tokens(user['id'], user['role'], remember_me=serializer.validated_data.get('rememberMe', False))
 
+        position_name = ''
+        if user.get('positionId'):
+            pos = get_position_by_id(user['positionId'])
+            position_name = pos['name'] if pos else ''
+
         return Response({
             'access': tokens['access'],
             'refresh': tokens['refresh'],
@@ -149,6 +154,9 @@ class LoginView(APIView):
                 'lastName': user['lastName'],
                 'role': user['role'],
                 'mobileNumber': user['mobileNumber'],
+                'profilePicture': user.get('profilePicture', ''),
+                'barangay': user.get('barangay', ''),
+                'positionName': position_name,
             }
         })
 
@@ -260,9 +268,31 @@ class CompleteRegistrationView(APIView):
         user_data['username'] = data['username']
         user_data['positionId'] = data.get('positionId', '')
 
-        create_user(user_data)
+        user_id = create_user(user_data)
         mark_registration_completed(mobile_number)
         clear_pending_registration(mobile_number)
+
+        full_name = f"{user_data['firstName']} {user_data['lastName']}"
+        role = user_data['role']
+        if role == 'farmer':
+            notif_type = 'new_farmer'
+            message = f"{full_name} registered as a farmer."
+        else:
+            notif_type = 'new_extension_worker'
+            message = f"{full_name} registered as an extension worker and is pending approval."
+
+        for admin in get_all_admins():
+            notif = {
+                'type': notif_type,
+                'message': message,
+                'relatedUserId': user_id,
+                'isRead': False,
+                'date': __import__('datetime').datetime.utcnow().isoformat(),
+            }
+            create_notification(admin['id'], notif_type, message, related_user_id=user_id)
+
+        notify_admins_ws(notif)
+        broadcast_admin_update(notif_type)
 
         return Response({'message': 'Registration completed successfully'}, status=status.HTTP_201_CREATED)
 
@@ -289,10 +319,17 @@ class MeView(APIView):
         user_data = get_user_by_id(user.id)
         if not user_data:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        position_name = ''
+        if user_data.get('positionId'):
+            pos = get_position_by_id(user_data['positionId'])
+            position_name = pos['name'] if pos else ''
         return Response({
             'id': user_data['id'],
             'firstName': user_data['firstName'],
             'lastName': user_data['lastName'],
             'role': user_data['role'],
             'mobileNumber': user_data['mobileNumber'],
+            'profilePicture': user_data.get('profilePicture', ''),
+            'barangay': user_data.get('barangay', ''),
+            'positionName': position_name,
         })

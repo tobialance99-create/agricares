@@ -25,6 +25,7 @@ urlpatterns = [
     path('api/positions/', include('accounts.position_urls')),
     path('api/system/', include('accounts.system_urls')),
     path('api/theme/', include('theme.urls')),
+    path('api/tickets/', include('tickets.urls')),
 ]
 
 

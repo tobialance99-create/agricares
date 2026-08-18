@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { sha256 } from '../../utils/crypto'
-import { MdLock, MdLogout, MdDashboard, MdViewSidebar } from 'react-icons/md'
+import { MdLock, MdLogout, MdDashboard, MdViewSidebar, MdCameraAlt } from 'react-icons/md'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
-import { clearCredentials } from '../../store/slices/authSlice'
+import { clearCredentials, updateProfilePicture } from '../../store/slices/authSlice'
 import { setAppLoading } from '../../store/slices/appSlice'
 import { deleteCookie } from '../../utils/cookies'
 import useLayout from '../../hooks/useLayout'
@@ -82,7 +82,31 @@ const ProfilePanel = ({ isOpen, onClose }) => {
         }
     }
 
+    const fileInputRef = useRef(null)
     const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() : 'U'
+
+    const handleAvatarClick = () => fileInputRef.current?.click()
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        const bitmap = await createImageBitmap(file)
+        const size = 200
+        const canvas = document.createElement('canvas')
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')
+        const scale = Math.max(size / bitmap.width, size / bitmap.height)
+        const x = (size - bitmap.width * scale) / 2
+        const y = (size - bitmap.height * scale) / 2
+        ctx.drawImage(bitmap, x, y, bitmap.width * scale, bitmap.height * scale)
+        const base64 = canvas.toDataURL('image/jpeg', 0.7)
+        try {
+            await api.post('/users/profile-picture/', { profilePicture: base64 })
+            dispatch(updateProfilePicture(base64))
+        } catch { }
+        e.target.value = ''
+    }
 
     return (
         <>
@@ -92,9 +116,20 @@ const ProfilePanel = ({ isOpen, onClose }) => {
                 title='Profile'
                 header={
                     <div className='flex items-center gap-3 p-6'>
-                        <div className='w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold'
-                            style={{ backgroundColor: theme.primaryColor, color: '#fff' }}>
-                            {initials}
+                        <input ref={fileInputRef} type='file' accept='image/*' className='hidden' onChange={handleFileChange} />
+                        <div className='relative w-14 h-14 cursor-pointer' onClick={handleAvatarClick}>
+                            {user?.profilePicture ? (
+                                <img src={user.profilePicture} className='w-14 h-14 rounded-full object-cover' />
+                            ) : (
+                                <div className='w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold'
+                                    style={{ backgroundColor: theme.primaryColor, color: '#fff' }}>
+                                    {initials}
+                                </div>
+                            )}
+                            <div className='absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center'
+                                style={{ backgroundColor: theme.primaryColor }}>
+                                <MdCameraAlt size={12} color='#fff' />
+                            </div>
                         </div>
                         <div>
                             <p className='font-semibold' style={{ color: theme.textColor }}>{user?.firstName} {user?.lastName}</p>
@@ -127,7 +162,7 @@ const ProfilePanel = ({ isOpen, onClose }) => {
 
                 {/* Layout Toggle */}
                 {!changePassStep && (
-                    <div className='p-4 rounded-xl' style={{ backgroundColor: theme.primaryColor + '10', border: `1px solid ${theme.secondaryColor}` }}>
+                    <div className='hidden md:block p-4 rounded-xl' style={{ backgroundColor: theme.primaryColor + '10', border: `1px solid ${theme.secondaryColor}` }}>
                         <p className='text-sm font-semibold mb-3' style={{ color: theme.textColor }}>Layout</p>
                         <div className='flex gap-2'>
                             <button onClick={() => toggleLayout('topbar')}

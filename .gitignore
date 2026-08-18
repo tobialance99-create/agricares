@@ -7,6 +7,9 @@ venv/
 *.egg-info/
 migrations/
 
+# Firebase
+server/firebase-credentials.json
+
 # React/Node
 node_modules/
 dist/

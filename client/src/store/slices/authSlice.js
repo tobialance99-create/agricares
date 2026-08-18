@@ -14,6 +14,9 @@ const authSlice = createSlice({
             state.token = action.payload.token
             state.isAuthenticated = true
         },
+        updateProfilePicture: (state, action) => {
+            if (state.user) state.user.profilePicture = action.payload
+        },
         clearCredentials: (state) => {
             state.user = null
             state.token = null
@@ -23,5 +26,5 @@ const authSlice = createSlice({
     },
 })
 
-export const { setCredentials, clearCredentials } = authSlice.actions
+export const { setCredentials, clearCredentials, updateProfilePicture } = authSlice.actions
 export default authSlice.reducer

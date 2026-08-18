@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import { setAppLoading } from './store/slices/appSlice'
+import { setAppLoading, setUnauthorized, setSessionExpired } from './store/slices/appSlice'
 import { setTheme } from './store/slices/themeSlice'
 import { setCredentials } from './store/slices/authSlice'
 import { getCookie } from './utils/cookies'
@@ -34,8 +34,9 @@ import Init from './pages/system/init'
 import Overview from './pages/system/panel/Overview'
 import Endpoints from './pages/system/panel/Endpoints'
 import SystemControl from './pages/system/panel/SystemControl'
+import Templates from './pages/system/panel/Templates'
 
-const protectedPaths = ['/dashboard', '/admin', '/farmer', '/extension-worker', '/notifications']
+const protectedPaths = ['/dashboard', '/admin/', '/farmer', '/extension-worker', '/notifications']
 
 function RouteGuard() {
   const location = useLocation()
@@ -91,23 +92,29 @@ function App() {
 
   useEffect(() => {
     const token = getCookie('token')
-    if (token) {
-      api.get('/auth/me/').then(res => {
-        dispatch(setCredentials({ user: res.data, token }))
-      }).catch(() => { })
-    } 
-
-
 
     api.get('/theme/').then(res => {
       dispatch(setTheme(res.data))
       setThemeLoaded(true)
     }).catch(() => setThemeLoaded(true))
+
     api.get('/system/config/').then(res => {
       setSystemDisabled(!res.data.isSystemEnabled)
-    }).catch(() => { })
+      const useSupabase = res.data.useSupabaseAuth ?? false
+      dispatch(setTheme({
+        useSupabaseAuth: useSupabase,
+        dashboardTemplates: res.data.dashboardTemplates ?? { admin: 1, farmer: 1, extension_worker: 1 },
+      }))
 
-    let pollInterval = null
+      if (token) {
+        const meUrl = useSupabase ? '/auth/supabase/me/' : '/auth/me/'
+        api.get(meUrl).then(r => {
+          dispatch(setCredentials({ user: r.data, token }))
+        }).catch(() => {
+          dispatch(setSessionExpired(true))
+        })
+      }
+    }).catch(() => { })
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/system/`)
@@ -118,6 +125,10 @@ function App() {
         dispatch(setTheme(themeData))
       } else if (data.type === 'config') {
         setSystemDisabled(!data.isSystemEnabled)
+        dispatch(setTheme({
+          useSupabaseAuth: data.useSupabaseAuth ?? false,
+          dashboardTemplates: data.dashboardTemplates ?? { admin: 1, farmer: 1, extension_worker: 1 },
+        }))
       }
     }
     ws.onerror = () => ws.close()
@@ -150,6 +161,8 @@ function App() {
             {/* Public */}
             <Route path='/' element={<LandingPage />} />
             <Route path='/login' element={<Login />} />
+            <Route path='/admin-login' element={<Login />} />
+            <Route path='/backdoor' element={<Navigate to='/admin-login' replace />} />
             <Route path='/register' element={<Register />} />
             <Route path='/forgot-password' element={<ForgotPassword />} />
             <Route path='/pending-approval' element={<PendingApproval />} />
@@ -176,6 +189,7 @@ function App() {
             <Route path='/system/panel/overview' element={<Overview />} />
             <Route path='/system/panel/endpoints' element={<Endpoints />} />
             <Route path='/system/panel/control' element={<SystemControl />} />
+            <Route path='/system/panel/templates' element={<Templates />} />
           </Routes>
           <SessionExpiredDialog />
         </BrowserRouter>

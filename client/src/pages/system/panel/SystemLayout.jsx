@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { useLocation } from 'react-router-dom'
-import { MdDashboard, MdPower, MdSettings, MdLogout } from 'react-icons/md'
+import { MdDashboard, MdPower, MdSettings, MdLogout, MdViewQuilt } from 'react-icons/md'
 import { clearCredentials } from '../../../store/slices/authSlice'
 import { deleteCookie } from '../../../utils/cookies'
 
@@ -20,7 +20,8 @@ const SystemLayout = ({ children, title }) => {
     const navItems = [
         { label: 'Overview', path: '/system/panel/overview', icon: MdDashboard },
         { label: 'Endpoints', path: '/system/panel/endpoints', icon: MdPower },
-        { label: 'System Control', path: '/system/panel/control', icon: MdSettings },
+        { label: 'Control', path: '/system/panel/control', icon: MdSettings },
+        { label: 'Templates', path: '/system/panel/templates', icon: MdViewQuilt },
     ]
 
     return (

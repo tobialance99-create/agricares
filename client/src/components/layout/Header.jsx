@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { GiWheat } from 'react-icons/gi'
 import { IoNotificationsOutline } from 'react-icons/io5'
+import { MdSettings } from 'react-icons/md'
 import logoMinecraft from '../../assets/logo-minecraft.png'
 import ProfilePanel from './ProfilePanel'
 
@@ -41,15 +42,9 @@ const Header = ({ notificationCount = 0 }) => {
                         )}
                     </div>
 
-                    {/* Profile */}
-                    <div className='flex items-center gap-2 cursor-pointer' onClick={() => setProfileOpen(true)}>
-                        <div className='w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold'
-                            style={{ backgroundColor: theme.secondaryColor, color: theme.textColor }}>
-                            {initials}
-                        </div>
-                        <span className='text-sm text-white font-medium hidden md:block'>
-                            {user ? `${user.firstName} ${user.lastName}` : 'User'}
-                        </span>
+                    {/* Settings */}
+                    <div className='cursor-pointer' onClick={() => setProfileOpen(true)}>
+                        <MdSettings size={24} color='#fff' />
                     </div>
                 </div>
             </div>

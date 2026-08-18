@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation, Navigate, Link } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { sha256 } from '../../utils/crypto'
 import { setCredentials } from '../../store/slices/authSlice'
 import { setCookie, REMEMBER_ME_DAYS, setSessionCookie } from '../../utils/cookies'
 import api from '../../services/api'
+import supabase from '../../services/supabase'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
@@ -14,9 +15,14 @@ import Button from '../../components/ui/Button'
 
 const Login = () => {
     const [searchParams] = useSearchParams()
-    const role = searchParams.get('role')
+    const location = useLocation()
+    const isAdminLogin = location.pathname === '/admin-login'
+
+
+    const role = isAdminLogin ? 'admin' : searchParams.get('role')
     const navigate = useNavigate()
     const theme = useSelector((state) => state.theme)
+    const isAuthenticated = useSelector((state) => state.auth.isAuthenticated)
     const dispatch = useDispatch()
     const [loadingMessage, setLoadingMessage] = useState(null)
     const [form, setForm] = useState({ identifier: '', password: '', rememberMe: false })
@@ -24,10 +30,17 @@ const Login = () => {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
 
+    if (isAuthenticated) return <Navigate to='/dashboard' replace />
+    if (searchParams.get('role') === 'admin') return <Navigate to='/admin-login' replace />
+
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target
         setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
     }
+
+    const systemConfig = useSelector((state) => state.theme)
+    const useSupabaseAuth = systemConfig?.useSupabaseAuth ?? false
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -35,39 +48,54 @@ const Login = () => {
         setLoading(true)
         setError(null)
         try {
-            const hashedPassword = await sha256(form.password)
-            const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword, rememberMe: form.rememberMe })
-            const userRole = res.data.user.role
-            if (userRole !== 'admin') {
-                if (role === 'farmer' && userRole === 'extension_worker') {
-                    setError('Please login as a Farmer.')
-                    return
+            let accessToken, userData
+
+            if (useSupabaseAuth && !isAdminLogin) {
+                // Supabase primary auth
+                try {
+                    const res = await api.post('/auth/supabase/login/', {
+                        email: form.identifier,
+                        password: form.password,
+                        rememberMe: form.rememberMe,
+                    })
+                    accessToken = res.data.access
+                    userData = res.data.user
+                } catch (supabaseErr) {
+                    // Fallback to custom auth
+                    const hashedPassword = await sha256(form.password)
+                    const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword, rememberMe: form.rememberMe })
+                    accessToken = res.data.access
+                    userData = res.data.user
                 }
-                if (role === 'extension' && userRole === 'farmer') {
-                    setError('Please login as an Extension Worker.')
-                    return
-                }
+            } else {
+                // Custom auth
+                const hashedPassword = await sha256(form.password)
+                const res = await api.post('/auth/login/', { identifier: form.identifier, password: hashedPassword, rememberMe: form.rememberMe })
+                accessToken = res.data.access
+                userData = res.data.user
             }
-            setCookie('token', res.data.access, form.rememberMe ? REMEMBER_ME_DAYS : 1)
-            dispatch(setCredentials({ user: res.data.user, token: res.data.access }))
+
+            const userRole = userData.role
+            if (role === 'farmer' && userRole !== 'farmer') { setError('Please login as a Farmer.'); return }
+            if (role === 'extension' && userRole !== 'extension_worker') { setError('Please login as an Extension Worker.'); return }
+            if (role === 'admin' && userRole !== 'admin') { setError('Please login as an Admin.'); return }
+
+            setCookie('token', accessToken, form.rememberMe ? REMEMBER_ME_DAYS : 1)
+            dispatch(setCredentials({ user: userData, token: accessToken }))
             dispatch(setAppLoading(true))
             navigate('/dashboard')
-
         } catch (err) {
             setLoadingMessage(null)
-            const msg = err.response?.data?.error
-            if (err.response?.data?.isPending) {
-                if (role === 'farmer') {
-                    setError('Please login as an Extension Worker.')
-                } else {
-                    navigate('/pending-approval')
-                }
-            }
-            else if (err.response?.data?.isIncomplete) {
-                setSessionCookie('pendingMobile', err.response.data.mobileNumber)
+            const data = err.response?.data
+            if (data?.isPending) {
+                if (role === 'farmer') setError('Please login as an Extension Worker.')
+                else navigate('/pending-approval')
+            } else if (data?.isIncomplete) {
+                setSessionCookie('pendingMobile', data.mobileNumber)
                 navigate(`/register?role=${role}`)
+            } else {
+                setError(data?.error || 'Invalid credentials. Please try again.')
             }
-            else setError(msg || 'Invalid credentials. Please try again.')
         } finally {
             setLoadingMessage(null)
             setLoading(false)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
-import { MdPower, MdPowerOff, MdPalette } from 'react-icons/md'
+import { MdPower, MdPowerOff, MdPalette, MdSecurity } from 'react-icons/md'
 import SystemLayout from './SystemLayout'
 import api from '../../../services/api'
 
@@ -24,6 +24,16 @@ const SystemControl = () => {
         }
     }
 
+    const handleToggleSupabaseAuth = async () => {
+        setLoading('supabase')
+        try {
+            await api.patch('/system/config/', { useSupabaseAuth: !config.useSupabaseAuth })
+            setConfig(prev => ({ ...prev, useSupabaseAuth: !prev.useSupabaseAuth }))
+        } finally {
+            setLoading(null)
+        }
+    }
+
     const handleThemeChange = async (key, value) => {
         const updated = { ...theme, [key]: value }
         setTheme(updated)
@@ -33,6 +43,33 @@ const SystemControl = () => {
     return (
         <SystemLayout title='System Control'>
             <div className='flex flex-col gap-4'>
+
+                {/* Supabase Auth Toggle */}
+                <div className='p-5 rounded-xl' style={{ backgroundColor: '#16213e' }}>
+                    <div className='flex items-center gap-2 mb-3'>
+                        <MdSecurity size={18} color='#e94560' />
+                        <p className='text-sm font-semibold' style={{ color: '#fff' }}>Auth Provider</p>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                        <div>
+                            <p className='text-xs font-medium' style={{ color: config?.useSupabaseAuth ? '#22c55e' : '#f59e0b' }}>
+                                {config?.useSupabaseAuth ? '● Supabase Auth (Primary)' : '● Custom Auth (Fallback)'}
+                            </p>
+                            <p className='text-xs opacity-40 mt-1' style={{ color: '#fff' }}>
+                                {config?.useSupabaseAuth ? 'Using Supabase for authentication' : 'Using custom JWT + Gmail OTP'}
+                            </p>
+                        </div>
+                        <button onClick={handleToggleSupabaseAuth} disabled={loading === 'supabase'}
+                            className='w-10 h-5 rounded-full transition-all cursor-pointer'
+                            style={{ backgroundColor: config?.useSupabaseAuth ? '#22c55e' : '#ffffff30' }}>
+                            {loading === 'supabase'
+                                ? <AiOutlineLoading3Quarters size={14} className='animate-spin mx-auto' color='#fff' />
+                                : <div className='w-4 h-4 rounded-full bg-white transition-all mx-auto'
+                                    style={{ transform: config?.useSupabaseAuth ? 'translateX(10px)' : 'translateX(-10px)' }} />
+                            }
+                        </button>
+                    </div>
+                </div>
 
                 {/* System Toggle */}
                 <div className='p-5 rounded-xl' style={{ backgroundColor: '#16213e' }}>

@@ -1,17 +1,37 @@
+import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { MdClose } from 'react-icons/md'
 
 const SidePanel = ({ isOpen, onClose, title, children, header, footer }) => {
-
     const theme = useSelector((state) => state.theme)
+    const [visible, setVisible] = useState(false)
+    const [animate, setAnimate] = useState(false)
+
+    useEffect(() => {
+        if (isOpen) {
+            setVisible(true)
+            const t = setTimeout(() => setAnimate(true), 10)
+            return () => clearTimeout(t)
+        } else {
+            setAnimate(false)
+            const t = setTimeout(() => setVisible(false), 300)
+            return () => clearTimeout(t)
+        }
+    }, [isOpen])
+
+    if (!visible) return null
 
     return (
         <>
-            {isOpen && (
-                <div className='fixed inset-0 z-40' style={{ backgroundColor: 'rgba(0,0,0,0.4)' }} onClick={onClose} />
-            )}
-            <div className='fixed top-0 right-0 h-full w-80 z-50 shadow-2xl transition-transform duration-300 flex flex-col'
-                style={{ backgroundColor: theme.backgroundColor, transform: isOpen ? 'translateX(0)' : 'translateX(100%)' }}>
+            <div className='fixed inset-0 z-[65] transition-opacity duration-300'
+                style={{ backgroundColor: 'rgba(0,0,0,0.4)', opacity: animate ? 1 : 0 }}
+                onClick={onClose} />
+            <div className='fixed top-0 right-0 h-screen w-80 z-[65] shadow-2xl flex flex-col transition-transform duration-300'
+                style={{
+                    backgroundColor: theme.backgroundColor,
+                    borderLeft: `1px solid ${theme.secondaryColor}`,
+                    transform: animate ? 'translateX(0)' : 'translateX(100%)',
+                }}>
                 <div className='flex items-center justify-between p-4' style={{ backgroundColor: theme.primaryColor }}>
                     <h2 className='text-white font-semibold'>{title}</h2>
                     <button onClick={onClose} className='text-white cursor-pointer opacity-80 hover:opacity-100'>

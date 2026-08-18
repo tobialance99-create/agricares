@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { sha256 } from '../../utils/crypto'
 import api from '../../services/api'
+import supabase from '../../services/supabase'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import heroMinecraft from '../../assets/hero-minecraft.jpg'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
@@ -23,15 +24,28 @@ const ForgotPassword = () => {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
 
+    const useSupabaseAuth = theme?.useSupabaseAuth ?? false
+
     const handleStep1 = async (e) => {
         e.preventDefault()
         setLoadingMessage('Sending OTP...')
         setLoading(true)
         setError(null)
         try {
-            const res = await api.post('/auth/forgot-password/', { identifier })
-            setMobileNumber(res.data.mobileNumber)
-            setStep(2)
+            if (useSupabaseAuth) {
+                try {
+                    await api.post('/auth/supabase/forgot-password/', { email: identifier })
+                    setStep(3) // skip OTP step, Supabase sends reset link directly
+                } catch {
+                    const res = await api.post('/auth/forgot-password/', { identifier })
+                    setMobileNumber(res.data.mobileNumber)
+                    setStep(2)
+                }
+            } else {
+                const res = await api.post('/auth/forgot-password/', { identifier })
+                setMobileNumber(res.data.mobileNumber)
+                setStep(2)
+            }
         } catch (err) {
             setLoadingMessage(null)
             setError(err.response?.data?.error || 'User not found. Please try again.')

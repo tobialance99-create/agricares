@@ -32,9 +32,19 @@ def update_theme(data):
 
 def get_system_config():
     doc = db.collection(SYSTEM_COLLECTION).document('config').get()
+    defaults = {
+        'isSystemEnabled': True,
+        'disabledEndpoints': [],
+        'useSupabaseAuth': False,
+        'dashboardTemplates': {'admin': 1, 'farmer': 1, 'extension_worker': 1},
+    }
     if doc.exists:
-        return doc.to_dict()
-    return {'isSystemEnabled': True, 'disabledEndpoints': []}
+        data = doc.to_dict()
+        for key, val in defaults.items():
+            if key not in data:
+                data[key] = val
+        return data
+    return defaults
 
 def update_system_config(data):
     db.collection(SYSTEM_COLLECTION).document('config').set(data, merge=True)

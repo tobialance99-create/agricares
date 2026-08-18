@@ -91,6 +91,7 @@ except Exception:
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'accounts.authentication.FirebaseJWTAuthentication',
+        'accounts.authentication.SupabaseAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
